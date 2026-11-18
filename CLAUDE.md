@@ -71,6 +71,7 @@ Issue → plan → feu vert → branche → code + tests → pnpm check → PR (
 - `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm build`
 - `pnpm format` — remet le code en forme ; `pnpm format:check` vérifie sans modifier
 - `pnpm check` — tout ce que fait la CI ; lancé automatiquement avant chaque push
+- `pnpm coach:bench` — banc d'essai du coach sur 20 positions (vraie API, clé dans `.env.local`), rapport dans `tmp/`
 
 ## Structure
 
