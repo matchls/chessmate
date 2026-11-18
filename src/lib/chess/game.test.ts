@@ -5,6 +5,7 @@ import {
   isOwnPiece,
   legalTargets,
   needsPromotion,
+  positionsOf,
   replay,
   statusLabel,
   toMovePairs,
@@ -171,5 +172,19 @@ describe("toMovePairs", () => {
       { number: 1, white: "e4", black: "e5" },
       { number: 2, white: "Nf3", black: undefined },
     ]);
+  });
+});
+
+describe("positionsOf", () => {
+  it("liste la position de départ puis une position par coup", () => {
+    const positions = positionsOf([m("e2", "e4"), m("e7", "e5")]);
+    expect(positions).toHaveLength(3);
+    expect(positions.map((p) => p.turn)).toEqual(["w", "b", "w"]);
+    expect(positions[1].fen).toBe(replay([m("e2", "e4")]).fen());
+    expect(positions[2].status).toEqual({
+      kind: "playing",
+      turn: "w",
+      check: false,
+    });
   });
 });

@@ -1,9 +1,17 @@
-import type { MoveInput } from "@/lib/chess/game";
+import type { Color, MoveInput } from "@/lib/chess/game";
+import {
+  ANALYSIS_LIMITS,
+  ANALYSIS_OPTIONS,
+  buildAnalysis,
+  type PositionAnalysis,
+} from "@/lib/engine/evaluation";
 import {
   goCommand,
   parseBestMove,
+  parseInfo,
   positionCommand,
   setOptionCommand,
+  type EngineInfo,
   type EngineOptionValue,
   type GoLimits,
 } from "@/lib/engine/uci";
@@ -37,14 +45,21 @@ export class StockfishEngine {
     this.worker.postMessage(command);
   }
 
-  /** Envoie une commande et attend la première ligne qui vérifie `match`. */
+  /**
+   * Envoie une commande et attend la première ligne qui vérifie `match`.
+   * `onLine` reçoit au passage toutes les lignes précédentes (ex. les lignes `info`).
+   */
   private waitFor(
     command: string,
     match: (line: string) => boolean,
+    onLine?: LineListener,
   ): Promise<string> {
     return new Promise((resolve) => {
       const listener: LineListener = (line) => {
-        if (!match(line)) return;
+        if (!match(line)) {
+          onLine?.(line);
+          return;
+        }
         this.listeners.delete(listener);
         resolve(line);
       };
@@ -71,14 +86,15 @@ export class StockfishEngine {
   }
 
   /**
-   * Demande le meilleur coup pour la position `fen` avec les réglages donnés.
-   * Renvoie null si le moteur n'a pas de coup, ou si une autre demande l'a remplacée.
+   * Lance une recherche sur `fen`. Renvoie la ligne `bestmove`, ou null si une autre demande
+   * l'a remplacée entre-temps. `onLine` reçoit les lignes intermédiaires.
    */
-  async bestMove(
+  private async search(
     fen: string,
     options: Record<string, EngineOptionValue>,
     limits: GoLimits,
-  ): Promise<MoveInput | null> {
+    onLine?: LineListener,
+  ): Promise<string | null> {
     await this.ready;
     const id = ++this.searchId;
     this.send("stop");
@@ -92,9 +108,42 @@ export class StockfishEngine {
     const line = await this.waitFor(
       goCommand(limits),
       (l) => parseBestMove(l) !== undefined,
+      onLine,
     );
-    if (id !== this.searchId) return null;
-    return parseBestMove(line) ?? null;
+    return id === this.searchId ? line : null;
+  }
+
+  /**
+   * Demande le meilleur coup pour la position `fen` avec les réglages donnés.
+   * Renvoie null si le moteur n'a pas de coup, ou si une autre demande l'a remplacée.
+   */
+  async bestMove(
+    fen: string,
+    options: Record<string, EngineOptionValue>,
+    limits: GoLimits,
+  ): Promise<MoveInput | null> {
+    const line = await this.search(fen, options, limits);
+    return line ? (parseBestMove(line) ?? null) : null;
+  }
+
+  /**
+   * Analyse la position à pleine puissance : score (côté blancs), meilleur coup, ligne
+   * principale. Renvoie null si une autre demande l'a remplacée.
+   */
+  async analyse(fen: string): Promise<PositionAnalysis | null> {
+    const infos: EngineInfo[] = [];
+    const line = await this.search(
+      fen,
+      ANALYSIS_OPTIONS,
+      ANALYSIS_LIMITS,
+      (l) => {
+        const info = parseInfo(l);
+        if (info) infos.push(info);
+      },
+    );
+    if (!line) return null;
+    const turn = fen.split(" ")[1] as Color;
+    return buildAnalysis(infos, line, turn);
   }
 
   terminate() {
