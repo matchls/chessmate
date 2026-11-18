@@ -45,6 +45,18 @@ describe("hangingPieces", () => {
     ]);
   });
 
+  it("une pièce défendue attaquée seulement par le roi n'est pas en prise", () => {
+    const game = new Chess("8/8/8/4k3/3P4/2P5/8/4K3 b - - 0 1");
+    expect(hangingPieces(game, "w")).toEqual([]);
+  });
+
+  it("une pièce non défendue attaquée par le roi est en prise", () => {
+    const game = new Chess("8/8/8/4k3/3P4/8/8/4K3 b - - 0 1");
+    expect(hangingPieces(game, "w")).toMatchObject([
+      { square: "d4", cheapestAttacker: "k" },
+    ]);
+  });
+
   it("ne crie pas au loup pour une pièce attaquée à valeur égale et défendue", () => {
     const game = new Chess("3rk3/8/8/8/8/8/8/3RK3 w - - 0 1");
     expect(hangingPieces(game, "w")).toEqual([]);
@@ -97,6 +109,27 @@ describe("extractFacts", () => {
     });
     expect(facts.secret.bestMove).toMatchObject({ san: "Nc7+", isCheck: true });
     expect(facts.secret.themes).toEqual(["fork"]);
+  });
+
+  it("pas de fourchette pour un coup de roi", () => {
+    // Le roi en e4 touche les deux tours adverses, mais un roi ne fait pas de fourchette.
+    const fen = "7k/8/8/3r1r2/8/4K3/8/8 w - - 0 1";
+    const facts = extractFacts({
+      fen,
+      analysis: analysisWith({ from: "e3", to: "e4" }),
+    });
+    expect(facts.secret.bestMove).toMatchObject({ san: "Ke4" });
+    expect(facts.secret.themes).not.toContain("fork");
+  });
+
+  it("une promotion se juge avec la nouvelle pièce : dame qui attaque cavalier et tour", () => {
+    const fen = "1n6/P7/8/8/8/8/r7/k6K w - - 0 1";
+    const facts = extractFacts({
+      fen,
+      analysis: analysisWith({ from: "a7", to: "a8", promotion: "q" }),
+    });
+    expect(facts.secret.bestMove).toMatchObject({ san: "a8=Q" });
+    expect(facts.secret.themes).not.toContain("fork");
   });
 
   it("signale la menace d'échec adverse (danger) et les échecs possibles du joueur (piste)", () => {

@@ -111,11 +111,16 @@ export function hangingPieces(game: Chess, color: Color): HangingPiece[] {
     const attackers = game.attackers(piece.square, enemy);
     if (attackers.length === 0) continue;
     const defenders = game.attackers(piece.square, color);
-    const cheapestAttacker = attackers
-      .map((square) => game.get(square)!.type)
-      .reduce((a, b) => (PIECE_VALUE[a] <= PIECE_VALUE[b] ? a : b));
+    const attackerTypes = attackers.map((square) => game.get(square)!.type);
+    // Le roi ne peut pas prendre une pièce défendue : on l'écarte s'il y a d'autres attaquants,
+    // et il ne compte jamais comme « attaquant moins cher ».
+    const nonKing = attackerTypes.filter((type) => type !== "k");
+    const cheapestAttacker = (
+      nonKing.length > 0 ? nonKing : attackerTypes
+    ).reduce((a, b) => (PIECE_VALUE[a] <= PIECE_VALUE[b] ? a : b));
     const outnumbered = defenders.length === 0;
     const cheaperAttacker =
+      cheapestAttacker !== "k" &&
       PIECE_VALUE[cheapestAttacker] < PIECE_VALUE[piece.type];
     if (outnumbered || cheaperAttacker) {
       result.push({ ...piece, attackers, defenders, cheapestAttacker });
@@ -174,7 +179,12 @@ function detectThemes(
 
   // Fourchette : la pièce jouée attaque au moins deux cibles plus précieuses qu'elle (ou le roi).
   const mover = played.color;
-  const movedValue = PIECE_VALUE[played.piece];
+  // Un coup de roi ne compte pas comme fourchette (le roi « vaut » 0) ; pour une promotion,
+  // c'est la nouvelle pièce qui attaque.
+  const movedValue =
+    played.piece === "k"
+      ? Infinity
+      : PIECE_VALUE[played.promotion ?? played.piece];
   const targets = piecesOf(game, opponentOf(mover)).filter(
     (target) =>
       (target.type === "k" || PIECE_VALUE[target.type] > movedValue) &&
