@@ -1,4 +1,5 @@
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -42,9 +43,9 @@ export default function Home() {
         </CardContent>
       </Card>
 
-      <Button size="lg" disabled>
-        Nouvelle partie (bientôt)
-      </Button>
+      <Link href="/jouer" className={buttonVariants({ size: "lg" })}>
+        Nouvelle partie
+      </Link>
     </main>
   );
 }
