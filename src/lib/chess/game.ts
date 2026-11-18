@@ -128,3 +128,27 @@ export function checkedKingSquare(game: Chess): Square | undefined {
   }
   return undefined;
 }
+
+export type PositionSnapshot = { fen: string; turn: Color; status: GameStatus };
+
+/**
+ * Toutes les positions de la partie, de la position de départ (indice 0) à la position
+ * actuelle (indice = nombre de coups). Le coup n°i fait passer de la position i−1 à la position i.
+ */
+export function positionsOf(
+  moves: readonly MoveInput[],
+  startFen?: string,
+): PositionSnapshot[] {
+  const game = new Chess(startFen);
+  const snapshot = (): PositionSnapshot => ({
+    fen: game.fen(),
+    turn: game.turn(),
+    status: getStatus(game),
+  });
+  const positions = [snapshot()];
+  for (const move of moves) {
+    game.move(move);
+    positions.push(snapshot());
+  }
+  return positions;
+}

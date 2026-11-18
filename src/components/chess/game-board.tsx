@@ -17,6 +17,7 @@ import { MoveList } from "@/components/chess/move-list";
 import { PromotionDialog } from "@/components/chess/promotion-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { usePositionAnalysis } from "@/hooks/use-position-analysis";
 import { useStockfish } from "@/hooks/use-stockfish";
 import {
   checkedKingSquare,
@@ -24,6 +25,7 @@ import {
   isOwnPiece,
   legalTargets,
   needsPromotion,
+  positionsOf,
   replay,
   statusLabel,
   tryMove,
@@ -38,6 +40,7 @@ import {
   getBotLevel,
   type BotLevelId,
 } from "@/lib/engine/levels";
+import { classifyMove, type MoveClass } from "@/lib/engine/evaluation";
 
 type Side = "white" | "black";
 type Mode = "bot" | "local";
@@ -87,6 +90,17 @@ export function GameBoard() {
   const sanHistory = game.history();
   const lastMove = moves.at(-1);
   const orientation = flipped ? opposite(playerSide) : playerSide;
+
+  // Analyse de chaque position par un second Stockfish, puis classement de chaque coup en
+  // comparant la position avant et après. Le meilleur coup reste interne (futur coach).
+  const positions = useMemo(() => positionsOf(moves), [moves]);
+  const analyses = usePositionAnalysis(positions);
+  const classifications: (MoveClass | undefined)[] = moves.map((_, index) => {
+    const before = analyses[index];
+    const after = analyses[index + 1];
+    if (!before || !after) return undefined;
+    return classifyMove(before.score, after.score, positions[index].turn);
+  });
 
   // Quand c'est au bot de jouer : on demande un coup à Stockfish après un court délai.
   useEffect(() => {
@@ -269,7 +283,10 @@ export function GameBoard() {
             <CardTitle>Coups</CardTitle>
           </CardHeader>
           <CardContent className="max-h-64 overflow-y-auto">
-            <MoveList sanHistory={sanHistory} />
+            <MoveList
+              sanHistory={sanHistory}
+              classifications={classifications}
+            />
           </CardContent>
         </Card>
       </div>
