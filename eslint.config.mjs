@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "coverage/**",
     "next-env.d.ts",
+    // Moteur Stockfish compilé, copié tel quel (voir public/engine/README.md).
+    "public/engine/**",
   ]),
 ]);
 
