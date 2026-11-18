@@ -43,3 +43,6 @@ next-env.d.ts
 
 # rapports locaux (audits Claude Code, scripts ponctuels)
 /tmp
+
+# réglages personnels de Claude Code (approbations « ne plus demander »)
+.claude/settings.local.json

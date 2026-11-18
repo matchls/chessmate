@@ -34,12 +34,14 @@ L'app tourne sur http://localhost:3000.
 | `pnpm format:check` | Vérifie le formatage (utilisé en CI) |
 | `pnpm typecheck`    | Vérification TypeScript              |
 | `pnpm test`         | Tests unitaires Vitest               |
+| `pnpm check`        | Toutes les vérifications de la CI    |
 
 ## Workflow
 
-Une issue par tâche → branche `feat/…` depuis `main` → PR avec `Closes #n` → CI (lint,
-formatage, types, tests, build) + preview Vercel → merge manuel. Détails dans
-[CLAUDE.md](./CLAUDE.md).
+Une issue par tâche → plan validé → branche `feat/…` depuis `main` → PR avec `Closes #n` →
+CI (formatage, lint, types, tests, build) + relecture automatique par Claude + preview Vercel →
+fusion selon les règles de [docs/workflow.md](./docs/workflow.md). Un hook Git lance
+`pnpm check` avant chaque `git push`.
 
 ## Licence
 

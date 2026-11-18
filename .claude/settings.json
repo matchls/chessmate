@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "model": "sonnet",
+  "outputStyle": "Proactive",
+  "permissions": {
+    "allow": ["Edit(./**)", "Bash(pnpm *)", "Bash(git *)", "Bash(gh *)"],
+    "ask": [
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Bash(* prisma migrate*)",
+      "Bash(* prisma db push*)",
+      "Bash(pnpm *migrate*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./**/.env)",
+      "Read(./.env.local)",
+      "Read(./**/.env.local)",
+      "Read(./.env.production)",
+      "Read(./.env.*.local)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)",
+      "Bash(git push origin main*)",
+      "Bash(git push * main)",
+      "Bash(git push * HEAD:main*)",
+      "Bash(* --no-verify*)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~*)",
+      "Bash(rm -rf ..*)"
+    ]
+  }
+}

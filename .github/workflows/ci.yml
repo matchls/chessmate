@@ -1,3 +1,5 @@
+# CI (intégration continue) : vérifications lancées à chaque PR et à chaque fusion sur main.
+# Elle refait côté serveur ce que `pnpm check` fait sur le poste (et le hook pre-push).
 name: CI
 
 on:
@@ -5,27 +7,43 @@ on:
   push:
     branches: [main]
 
+# Si on pousse deux fois de suite sur la même PR, on annule la vérification précédente.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  quality:
+  verifications:
     name: Lint, types, tests, build
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Récupérer le code
+        uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - name: Installer pnpm
+        uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@v4
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-      - run: pnpm format:check
-      - run: pnpm typecheck
-      - run: pnpm test
-      - run: pnpm build
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Mise en forme du code (Prettier)
+        run: pnpm format:check
+
+      - name: Lint (ESLint)
+        run: pnpm lint
+
+      - name: Vérification des types (TypeScript)
+        run: pnpm typecheck
+
+      - name: Tests unitaires (Vitest)
+        run: pnpm test
+
+      - name: Construction (Next.js)
+        run: pnpm build
