@@ -1,7 +1,13 @@
 "use client";
 
 import type { Square } from "chess.js";
-import { useMemo, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import {
   Chessboard,
   type PieceDropHandlerArgs,
@@ -11,6 +17,7 @@ import { MoveList } from "@/components/chess/move-list";
 import { PromotionDialog } from "@/components/chess/promotion-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useStockfish } from "@/hooks/use-stockfish";
 import {
   checkedKingSquare,
   getStatus,
@@ -24,8 +31,16 @@ import {
   type MoveInput,
   type PromotionPiece,
 } from "@/lib/chess/game";
+import {
+  BOT_LEVELS,
+  BOT_MOVE_DELAY_MS,
+  DEFAULT_BOT_LEVEL,
+  getBotLevel,
+  type BotLevelId,
+} from "@/lib/engine/levels";
 
-type Orientation = "white" | "black";
+type Side = "white" | "black";
+type Mode = "bot" | "local";
 
 const LIGHT_SQUARE: CSSProperties = { backgroundColor: "#f0d9b5" };
 const DARK_SQUARE: CSSProperties = { backgroundColor: "#b58863" };
@@ -44,20 +59,57 @@ const TARGET_CAPTURE: CSSProperties = {
     "radial-gradient(circle, transparent 60%, rgba(0, 0, 0, 0.2) 62%)",
 };
 
+const sideToColor = (side: Side): Color => (side === "white" ? "w" : "b");
+const opposite = (side: Side): Side => (side === "white" ? "black" : "white");
+
 export function GameBoard() {
+  const engineRef = useStockfish();
+
   const [moves, setMoves] = useState<MoveInput[]>([]);
   const [selected, setSelected] = useState<Square | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<{
     from: Square;
     to: Square;
   } | null>(null);
-  const [orientation, setOrientation] = useState<Orientation>("white");
+  const [mode, setMode] = useState<Mode>("bot");
+  const [level, setLevel] = useState<BotLevelId>(DEFAULT_BOT_LEVEL);
+  /** Camp du joueur : en mode bot, le bot joue l'autre camp. */
+  const [playerSide, setPlayerSide] = useState<Side>("white");
+  const [flipped, setFlipped] = useState(false);
 
   const game = useMemo(() => replay(moves), [moves]);
+  const fen = game.fen();
   const status = getStatus(game);
   const isOver = status.kind !== "playing";
+  const turn: Color = game.turn();
+  const isBotTurn =
+    mode === "bot" && !isOver && turn !== sideToColor(playerSide);
   const sanHistory = game.history();
   const lastMove = moves.at(-1);
+  const orientation = flipped ? opposite(playerSide) : playerSide;
+
+  // Quand c'est au bot de jouer : on demande un coup à Stockfish après un court délai.
+  useEffect(() => {
+    if (!isBotTurn) return;
+    let cancelled = false;
+    const { options, limits } = getBotLevel(level);
+
+    const timer = setTimeout(async () => {
+      const engine = engineRef.current;
+      if (!engine) return;
+      const move = await engine.bestMove(fen, options, limits);
+      if (cancelled || !move) return;
+      setMoves((current) => {
+        const result = tryMove(current, move);
+        return result.ok ? result.moves : current;
+      });
+    }, BOT_MOVE_DELAY_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [isBotTurn, fen, level, engineRef]);
 
   function play(move: MoveInput): boolean {
     const result = tryMove(moves, move);
@@ -69,7 +121,7 @@ export function GameBoard() {
 
   /** Joue from → to, ou ouvre le choix de la pièce si c'est une promotion. */
   function attemptMove(from: Square, to: Square): boolean {
-    if (isOver) return false;
+    if (isOver || isBotTurn) return false;
     if (needsPromotion(game, from, to)) {
       setPendingPromotion({ from, to });
       setSelected(null);
@@ -87,7 +139,7 @@ export function GameBoard() {
   }
 
   function handleSquareClick({ square }: SquareHandlerArgs) {
-    if (isOver) return;
+    if (isOver || isBotTurn) return;
     const target = square as Square;
     if (selected && legalTargets(game, selected).includes(target)) {
       attemptMove(selected, target);
@@ -103,11 +155,14 @@ export function GameBoard() {
     setPendingPromotion(null);
   }
 
-  function newGame(side: Orientation = orientation) {
+  function newGame(next: { side?: Side; mode?: Mode } = {}) {
     setMoves([]);
     setSelected(null);
     setPendingPromotion(null);
-    setOrientation(side);
+    setFlipped(false);
+    if (next.side) setPlayerSide(next.side);
+    if (next.mode) setMode(next.mode);
+    void engineRef.current?.newGame();
   }
 
   const squareStyles: Record<string, CSSProperties> = {};
@@ -124,21 +179,20 @@ export function GameBoard() {
     }
   }
 
-  const turn: Color = game.turn();
-
   return (
     <div className="flex w-full flex-col gap-6 lg:flex-row lg:items-start">
       <div className="mx-auto w-full max-w-[min(100%,600px)] flex-1">
         <Chessboard
           options={{
             id: "chessmate-board",
-            position: game.fen(),
+            position: fen,
             boardOrientation: orientation,
             lightSquareStyle: LIGHT_SQUARE,
             darkSquareStyle: DARK_SQUARE,
             squareStyles,
             allowDrawingArrows: false,
-            canDragPiece: ({ piece }) => !isOver && piece.pieceType[0] === turn,
+            canDragPiece: ({ piece }) =>
+              !isOver && !isBotTurn && piece.pieceType[0] === turn,
             onPieceDrop: handlePieceDrop,
             onSquareClick: handleSquareClick,
           }}
@@ -146,45 +200,69 @@ export function GameBoard() {
       </div>
 
       <div className="flex w-full flex-col gap-4 lg:w-72">
-        <p
-          role="status"
-          aria-live="polite"
-          className={isOver ? "text-lg font-semibold" : "text-base font-medium"}
-        >
-          {statusLabel(status)}
-        </p>
+        <div role="status" aria-live="polite" className="flex flex-col gap-1">
+          <p
+            className={
+              isOver ? "text-lg font-semibold" : "text-base font-medium"
+            }
+          >
+            {statusLabel(status)}
+          </p>
+          {isBotTurn && (
+            <p className="text-muted-foreground text-sm">Le bot réfléchit…</p>
+          )}
+        </div>
 
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => newGame()}>Nouvelle partie</Button>
-          <Button
-            variant="outline"
-            onClick={() =>
-              setOrientation(orientation === "white" ? "black" : "white")
-            }
-          >
+          <Button variant="outline" onClick={() => setFlipped(!flipped)}>
             Retourner l&apos;échiquier
           </Button>
         </div>
 
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-muted-foreground">Jouer avec :</span>
-          <Button
-            size="sm"
-            variant={orientation === "white" ? "secondary" : "ghost"}
-            aria-pressed={orientation === "white"}
-            onClick={() => newGame("white")}
+        <ToggleRow label="Adversaire :">
+          <ToggleButton
+            pressed={mode === "bot"}
+            onClick={() => newGame({ mode: "bot" })}
+          >
+            Bot
+          </ToggleButton>
+          <ToggleButton
+            pressed={mode === "local"}
+            onClick={() => newGame({ mode: "local" })}
+          >
+            À deux
+          </ToggleButton>
+        </ToggleRow>
+
+        {mode === "bot" && (
+          <ToggleRow label="Niveau :">
+            {BOT_LEVELS.map((candidate) => (
+              <ToggleButton
+                key={candidate.id}
+                pressed={level === candidate.id}
+                onClick={() => setLevel(candidate.id)}
+              >
+                {candidate.label}
+              </ToggleButton>
+            ))}
+          </ToggleRow>
+        )}
+
+        <ToggleRow label="Jouer avec :">
+          <ToggleButton
+            pressed={playerSide === "white"}
+            onClick={() => newGame({ side: "white" })}
           >
             Blancs
-          </Button>
-          <Button
-            size="sm"
-            variant={orientation === "black" ? "secondary" : "ghost"}
-            aria-pressed={orientation === "black"}
-            onClick={() => newGame("black")}
+          </ToggleButton>
+          <ToggleButton
+            pressed={playerSide === "black"}
+            onClick={() => newGame({ side: "black" })}
           >
             Noirs
-          </Button>
-        </div>
+          </ToggleButton>
+        </ToggleRow>
 
         <Card size="sm">
           <CardHeader>
@@ -203,5 +281,41 @@ export function GameBoard() {
         onCancel={() => setPendingPromotion(null)}
       />
     </div>
+  );
+}
+
+function ToggleRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-1 text-sm">
+      <span className="text-muted-foreground mr-1">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+function ToggleButton({
+  pressed,
+  onClick,
+  children,
+}: {
+  pressed: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Button
+      size="sm"
+      variant={pressed ? "secondary" : "ghost"}
+      aria-pressed={pressed}
+      onClick={onClick}
+    >
+      {children}
+    </Button>
   );
 }

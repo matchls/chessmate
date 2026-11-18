@@ -45,4 +45,5 @@ fusion selon les règles de [docs/workflow.md](./docs/workflow.md). Un hook Git 
 
 ## Licence
 
-À définir. Stockfish est distribué sous GPLv3.
+À définir pour le code de ChessMate. Le moteur Stockfish (`public/engine/`) est distribué
+sous licence GNU GPL v3 : voir [public/engine/README.md](./public/engine/README.md).
