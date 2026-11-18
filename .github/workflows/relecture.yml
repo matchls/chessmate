@@ -1,0 +1,42 @@
+# Relecture automatique : à chaque PR, un second Claude relit le changement et commente.
+# Il utilise le modèle Opus, différent de celui qui écrit le code (Sonnet), et n'a pas vu le
+# code s'écrire. Il ne valide ni ne bloque la PR : la décision de fusion suit docs/workflow.md.
+name: Relecture automatique
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+# Si on pousse deux fois de suite sur la même PR, on annule la relecture précédente.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  relecture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Relire la PR avec Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          # Jeton lié à l'abonnement Claude de Mat, rangé dans les secrets du dépôt.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugin_marketplaces: "https://github.com/anthropics/claude-code.git"
+          plugins: "code-review@claude-code-plugins"
+          # --comment : les remarques sont écrites dans la PR, sur les lignes concernées.
+          prompt: "/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
+          claude_args: |
+            --model opus
+            --allowedTools "mcp__github_inline_comment__create_inline_comment"

@@ -1,0 +1,3 @@
+# Hook Git : avant chaque envoi vers GitHub, on lance les mêmes vérifications que la CI.
+# Si quelque chose échoue, l'envoi est refusé. Ne pas contourner avec --no-verify.
+pnpm check
