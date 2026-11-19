@@ -2,14 +2,57 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (@media (prefers-color-scheme: dark));
+/*
+ * ChessMate n'a qu'un seul thème (ambiance « vieille université », fond bois sombre).
+ * Le variant `dark:` ne s'active donc que si on ajoute la classe `.dark`, ce qu'on ne fait pas :
+ * il ne suit plus le réglage de l'appareil.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * 1. Tokens de la marque (design system, docs : « ChessMate — Design System »).
+ * Ils génèrent des classes Tailwind : bg-noyer, text-or, border-or-300, shadow-carte…
+ * Gamme de nuances : 100 (très clair) → 500 (couleur de base) → 900 (très foncé).
+ * Les nuances 300 restent lisibles en texte sur le fond noyer (contraste WCAG AA ≥ 4.5).
+ */
+@theme static {
+  --color-noyer: #3b2a1e;
+  --color-noyer-clair: #5a4231;
+  --color-parchemin: #f3e9d2;
+  --color-encre: #2b1d14;
+
+  --color-or-100: #f0e9df;
+  --color-or-300: #dac8b0;
+  --color-or: #b59260;
+  --color-or-700: #886e48;
+  --color-or-900: #5a4930;
+
+  --color-bordeaux-100: #e4d2d5;
+  --color-bordeaux-300: #bc8f95;
+  --color-bordeaux: #7a1f2b;
+  --color-bordeaux-700: #5c1720;
+  --color-bordeaux-900: #3d1016;
+
+  --color-vert-bouteille-100: #d5dfd8;
+  --color-vert-bouteille-300: #97ae9c;
+  --color-vert-bouteille: #2f5d3a;
+  --color-vert-bouteille-700: #23462c;
+  --color-vert-bouteille-900: #182e1d;
+
+  /* Ombres teintées de brun plutôt que noires : léger (cartes), marqué (modales, plateau). */
+  --shadow-carte: 0 1px 2px rgb(30 20 13 / 0.3), 0 2px 6px rgb(30 20 13 / 0.25);
+  --shadow-plateau:
+    0 4px 10px rgb(30 20 13 / 0.35), 0 16px 40px rgb(30 20 13 / 0.45);
+}
+
+/* 2. Branchement des tokens sur les variables de shadcn/ui. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-geist-sans);
+  --font-heading: var(--font-cormorant);
+  --color-success: var(--success);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -48,76 +91,65 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Surface sombre par défaut : la page, sur fond noyer. */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.147 0.004 49.25);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.147 0.004 49.25);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.147 0.004 49.25);
-  --primary: oklch(0.216 0.006 56.043);
-  --primary-foreground: oklch(0.985 0.001 106.423);
-  --secondary: oklch(0.97 0.001 106.424);
-  --secondary-foreground: oklch(0.216 0.006 56.043);
-  --muted: oklch(0.97 0.001 106.424);
-  --muted-foreground: oklch(0.553 0.013 58.071);
-  --accent: oklch(0.97 0.001 106.424);
-  --accent-foreground: oklch(0.216 0.006 56.043);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.923 0.003 48.717);
-  --input: oklch(0.923 0.003 48.717);
-  --ring: oklch(0.709 0.01 56.259);
-  --chart-1: oklch(0.869 0.005 56.366);
-  --chart-2: oklch(0.553 0.013 58.071);
-  --chart-3: oklch(0.444 0.011 73.639);
-  --chart-4: oklch(0.374 0.01 67.558);
-  --chart-5: oklch(0.268 0.007 34.298);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0.001 106.423);
-  --sidebar-foreground: oklch(0.147 0.004 49.25);
-  --sidebar-primary: oklch(0.216 0.006 56.043);
-  --sidebar-primary-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-accent: oklch(0.97 0.001 106.424);
-  --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
-  --sidebar-border: oklch(0.923 0.003 48.717);
-  --sidebar-ring: oklch(0.709 0.01 56.259);
+  --background: var(--color-noyer);
+  --foreground: var(--color-parchemin);
+  --card: var(--color-parchemin);
+  --card-foreground: var(--color-encre);
+  --popover: var(--color-parchemin);
+  --popover-foreground: var(--color-encre);
+  --primary: var(--color-or);
+  --primary-foreground: var(--color-noyer);
+  --secondary: var(--color-noyer-clair);
+  --secondary-foreground: var(--color-parchemin);
+  --muted: var(--color-noyer-clair);
+  --muted-foreground: #c5b9a5;
+  --accent: var(--color-noyer-clair);
+  --accent-foreground: var(--color-parchemin);
+  --destructive: var(--color-bordeaux-300);
+  --success: var(--color-vert-bouteille-300);
+  --border: var(--color-noyer-clair);
+  --input: var(--color-noyer-clair);
+  --ring: var(--color-or);
+  --chart-1: var(--color-or);
+  --chart-2: var(--color-vert-bouteille-300);
+  --chart-3: var(--color-bordeaux-300);
+  --chart-4: var(--color-or-300);
+  --chart-5: var(--color-noyer-clair);
+  /* Coins discrets, presque droits. */
+  --radius: 0.25rem;
+  --sidebar: var(--color-noyer);
+  --sidebar-foreground: var(--color-parchemin);
+  --sidebar-primary: var(--color-or);
+  --sidebar-primary-foreground: var(--color-noyer);
+  --sidebar-accent: var(--color-noyer-clair);
+  --sidebar-accent-foreground: var(--color-parchemin);
+  --sidebar-border: var(--color-noyer-clair);
+  --sidebar-ring: var(--color-or);
 }
 
-/* Mode sombre : suit automatiquement le réglage de l'appareil. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: oklch(0.147 0.004 49.25);
-    --foreground: oklch(0.985 0.001 106.423);
-    --card: oklch(0.216 0.006 56.043);
-    --card-foreground: oklch(0.985 0.001 106.423);
-    --popover: oklch(0.216 0.006 56.043);
-    --popover-foreground: oklch(0.985 0.001 106.423);
-    --primary: oklch(0.923 0.003 48.717);
-    --primary-foreground: oklch(0.216 0.006 56.043);
-    --secondary: oklch(0.268 0.007 34.298);
-    --secondary-foreground: oklch(0.985 0.001 106.423);
-    --muted: oklch(0.268 0.007 34.298);
-    --muted-foreground: oklch(0.709 0.01 56.259);
-    --accent: oklch(0.268 0.007 34.298);
-    --accent-foreground: oklch(0.985 0.001 106.423);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.553 0.013 58.071);
-    --chart-1: oklch(0.869 0.005 56.366);
-    --chart-2: oklch(0.553 0.013 58.071);
-    --chart-3: oklch(0.444 0.011 73.639);
-    --chart-4: oklch(0.374 0.01 67.558);
-    --chart-5: oklch(0.268 0.007 34.298);
-    --sidebar: oklch(0.216 0.006 56.043);
-    --sidebar-foreground: oklch(0.985 0.001 106.423);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0.001 106.423);
-    --sidebar-accent: oklch(0.268 0.007 34.298);
-    --sidebar-accent-foreground: oklch(0.985 0.001 106.423);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.553 0.013 58.071);
-  }
+/*
+ * Surfaces claires (cartes, fenêtres, menus) : fond parchemin.
+ * On y redéfinit les variables pour garder des contrastes lisibles,
+ * sans toucher au code des composants shadcn.
+ */
+[data-slot="card"],
+[data-slot="dialog-content"],
+.surface-parchemin {
+  --background: var(--color-parchemin);
+  --foreground: var(--color-encre);
+  --secondary: var(--color-or-100);
+  --secondary-foreground: var(--color-encre);
+  --muted: var(--color-or-100);
+  --muted-foreground: #635649;
+  --accent: var(--color-or-100);
+  --accent-foreground: var(--color-encre);
+  --destructive: var(--color-bordeaux);
+  --success: var(--color-vert-bouteille);
+  --border: var(--color-or-300);
+  --input: var(--color-or-300);
+  --ring: var(--color-or-700);
 }
 
 @layer base {
@@ -129,5 +161,10 @@
   }
   html {
     @apply font-sans;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-heading;
   }
 }
