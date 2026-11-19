@@ -73,6 +73,14 @@ describe("templateHint niveau 1", () => {
     expect(result.highlights.length).toBeGreaterThan(0);
   });
 
+  it("coup calme en bordure de zone : les cases surlignées restent dans la zone annoncée", () => {
+    const start = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    const result = hint(start, 1, { from: "g1", to: "f3" });
+    expect(result.message).toContain("aile roi");
+    expect(result.highlights.length).toBeGreaterThan(0);
+    for (const square of result.highlights) expect("fgh").toContain(square[0]);
+  });
+
   it("sans analyse : indice général", () => {
     const start = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     expect(hint(start, 1).message.length).toBeGreaterThan(20);

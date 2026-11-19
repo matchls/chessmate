@@ -159,7 +159,12 @@ function levelOne(facts: PositionFacts, game: Chess, pick: Pick): TemplateHint {
 
   if (best) {
     const zone = neighbours(best.to)
-      .filter((square) => square !== best.from && !game.get(square))
+      .filter(
+        (square) =>
+          square !== best.from &&
+          !game.get(square) &&
+          zoneOf(square) === zoneOf(best.to),
+      )
       .slice(0, 2);
     return {
       message: pick([

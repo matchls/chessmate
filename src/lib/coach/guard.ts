@@ -215,7 +215,8 @@ export function guardReply(raw: string, context: GuardContext): GuardResult {
       issues.push("dropped-arrow");
       continue;
     }
-    if (best && arrow.from === best.from && arrow.to === best.to) {
+    // Une flèche partant de la pièce du meilleur coup montre sa direction : on la retire.
+    if (best && arrow.from === best.from) {
       issues.push("leak-arrow");
       continue;
     }

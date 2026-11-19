@@ -140,6 +140,18 @@ describe("guardReply", () => {
     expect(result.issues).toEqual(["leak-arrow"]);
   });
 
+  it("retire aussi une flèche qui part de la pièce du meilleur coup vers une autre case (direction)", () => {
+    const result = guardReply(
+      reply({
+        message: "Où ton cavalier serait-il le plus actif ?",
+        arrows: [{ from: "b5", to: "d6" }],
+      }),
+      context,
+    );
+    expect(result.arrows).toEqual([]);
+    expect(result.issues).toEqual(["leak-arrow"]);
+  });
+
   it("retire les cases inexistantes et les flèches incohérentes", () => {
     const result = guardReply(
       reply({
