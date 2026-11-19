@@ -1,4 +1,8 @@
-import { factsToPrompt, type PositionFacts } from "@/lib/coach/facts";
+import {
+  factsToPrompt,
+  type PositionFacts,
+  type SecretLevel,
+} from "@/lib/coach/facts";
 import type { HintLevel } from "@/lib/coach/schema";
 
 export type ChatMessage = { role: "system" | "user"; content: string };
@@ -17,7 +21,7 @@ QUI EST QUI
 RÈGLES ABSOLUES
 - Ne donne JAMAIS le coup à jouer : ni en notation (Cf3, Nf3, e2e4…), ni en toutes lettres (« joue ton cavalier en c7 »), ni par une flèche, ni en surlignant la case où une pièce devrait aller.
 - N'utilise que les faits fournis. N'invente aucune pièce, case ou menace. Si les faits disent « aucune », il n'y a rien de ce type : n'en parle pas.
-- Les informations de la partie SECRET servent uniquement à savoir vers quoi orienter le joueur. Ne les révèle pas.
+- Les informations de la partie SECRET servent uniquement à savoir vers quoi orienter le joueur. Ne les révèle pas, et ne devine jamais la case où la pièce devrait aller.
 - Réponds en français, en tutoyant, en 2 ou 3 phrases courtes, sans notation d'échecs.
 - Ton message se termine TOUJOURS par une question qui fait réfléchir le joueur (dernier caractère : « ? »).
 
@@ -42,13 +46,24 @@ const LEVEL_REMINDER: Record<HintLevel, string> = {
   3: "Niveau d'indice demandé : 3 (tu peux donner l'idée du plan, jamais le coup).",
 };
 
+/** Ce que le modèle sait du meilleur coup, selon le niveau d'indice demandé. */
+export const SECRET_LEVEL: Record<HintLevel, SecretLevel> = {
+  1: "none",
+  2: "piece",
+  3: "idea",
+};
+
 /** Construit les messages envoyés au modèle : consignes, faits de la position, demande. */
 export function buildMessages(
   facts: PositionFacts,
   hintLevel: HintLevel,
   question?: string,
 ): ChatMessage[] {
-  const parts = [factsToPrompt(facts), "", LEVEL_REMINDER[hintLevel]];
+  const parts = [
+    factsToPrompt(facts, SECRET_LEVEL[hintLevel]),
+    "",
+    LEVEL_REMINDER[hintLevel],
+  ];
   if (question) {
     // La question du joueur est encadrée : c'est une donnée, pas une consigne.
     parts.push(

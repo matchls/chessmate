@@ -48,6 +48,7 @@ test(
       let errors = 0;
       let withQuestion = 0;
       let answered = 0;
+      let templates = 0;
 
       for (const position of BENCH_POSITIONS) {
         for (const benchCase of position.cases) {
@@ -56,9 +57,14 @@ test(
             analysis: position.analysis,
             ...benchCase,
           });
+          let calledModel = false;
           const label = `${position.label} (niv. ${benchCase.hintLevel}${benchCase.question ? ", question" : ""})`;
           try {
-            const ask = () => askCoach(request, provider);
+            const ask = () =>
+              askCoach(request, () => {
+                calledModel = true;
+                return provider;
+              });
             const result = await ask().catch(async (error: unknown) => {
               if (error instanceof ProviderError && error.status === 429) {
                 await sleep(RETRY_AFTER_429_MS);
@@ -66,7 +72,8 @@ test(
               }
               throw error;
             });
-            latencies.push(result.latencyMs);
+            if (result.source === "model") latencies.push(result.latencyMs);
+            else templates += 1;
             answered += 1;
             if (result.message.trim().endsWith("?")) withQuestion += 1;
             if (result.issues.some((issue) => issue.startsWith("leak")))
@@ -84,7 +91,7 @@ test(
               .filter(Boolean)
               .join(", ");
             rows.push(
-              `| ${cell(label)} | ${result.latencyMs} | ${result.issues.join(", ") || "—"} | ${cell(result.message)} | ${visuals || "—"} | |`,
+              `| ${cell(label)} | ${result.source === "template" ? "gabarit" : result.latencyMs} | ${result.issues.join(", ") || "—"} | ${cell(result.message)} | ${visuals || "—"} | |`,
             );
           } catch (error) {
             errors += 1;
@@ -92,7 +99,8 @@ test(
               `| ${cell(label)} | — | erreur | ${cell((error as Error).message)} | — | |`,
             );
           }
-          await sleep(PAUSE_MS);
+          // Pause seulement après un appel au modèle (les gabarits ne coûtent rien).
+          if (calledModel) await sleep(PAUSE_MS);
         }
       }
 
@@ -104,7 +112,8 @@ test(
         "",
         `Date : ${new Date().toISOString()} · fournisseur : ${provider.name} · ${rows.length} cas`,
         "",
-        `- Temps de réponse : médiane ${median} ms, 90 % sous ${p90} ms`,
+        `- Temps de réponse du modèle : médiane ${median} ms, 90 % sous ${p90} ms`,
+        `- Indices écrits par le code (gabarits, niveaux 1 et 2) : ${templates} ; par le modèle : ${answered - templates}`,
         `- Coup révélé (bloqué par le garde-fou) : ${leaks}`,
         `- Réponses illisibles (remplacées) : ${invalid}`,
         `- Messages qui finissent par une question : ${withQuestion} sur ${answered}`,

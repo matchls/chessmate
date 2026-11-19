@@ -3,7 +3,8 @@ import type { CoachRequest } from "@/lib/coach/schema";
 /**
  * Positions du banc d'essai du coach. Analyses obtenues avec le moteur de l'application
  * (Stockfish 19 lite, profondeur 16), score du point de vue des blancs.
- * Chaque position est testée au niveau 1, certaines au niveau 3 ou avec une question.
+ * Chaque position est testée au niveau 1, certaines aux niveaux 2 et 3 ou avec une question.
+ * Les niveaux 1 et 2 sans question sont écrits par le code (gabarits), le reste par le modèle.
  */
 export type BenchPosition = {
   id: string;
@@ -78,6 +79,9 @@ export const BENCH_POSITIONS: BenchPosition[] = [
       {
         hintLevel: 1,
       },
+      {
+        hintLevel: 3,
+      },
     ],
   },
   {
@@ -99,6 +103,9 @@ export const BENCH_POSITIONS: BenchPosition[] = [
     cases: [
       {
         hintLevel: 1,
+      },
+      {
+        hintLevel: 2,
       },
       {
         hintLevel: 3,
@@ -124,6 +131,9 @@ export const BENCH_POSITIONS: BenchPosition[] = [
     cases: [
       {
         hintLevel: 1,
+      },
+      {
+        hintLevel: 3,
       },
     ],
   },
@@ -169,6 +179,12 @@ export const BENCH_POSITIONS: BenchPosition[] = [
       {
         hintLevel: 1,
       },
+      {
+        hintLevel: 2,
+      },
+      {
+        hintLevel: 3,
+      },
     ],
   },
   {
@@ -190,6 +206,9 @@ export const BENCH_POSITIONS: BenchPosition[] = [
     cases: [
       {
         hintLevel: 1,
+      },
+      {
+        hintLevel: 2,
       },
       {
         hintLevel: 3,
@@ -221,6 +240,9 @@ export const BENCH_POSITIONS: BenchPosition[] = [
         hintLevel: 1,
       },
       {
+        hintLevel: 2,
+      },
+      {
         hintLevel: 3,
       },
     ],
@@ -244,6 +266,9 @@ export const BENCH_POSITIONS: BenchPosition[] = [
     cases: [
       {
         hintLevel: 1,
+      },
+      {
+        hintLevel: 2,
       },
       {
         hintLevel: 3,
@@ -273,6 +298,12 @@ export const BENCH_POSITIONS: BenchPosition[] = [
     cases: [
       {
         hintLevel: 1,
+      },
+      {
+        hintLevel: 2,
+      },
+      {
+        hintLevel: 3,
       },
     ],
   },
@@ -363,6 +394,9 @@ export const BENCH_POSITIONS: BenchPosition[] = [
         hintLevel: 1,
       },
       {
+        hintLevel: 2,
+      },
+      {
         hintLevel: 1,
         question: "Je fais quoi, là ?",
       },
@@ -387,6 +421,9 @@ export const BENCH_POSITIONS: BenchPosition[] = [
     cases: [
       {
         hintLevel: 1,
+      },
+      {
+        hintLevel: 2,
       },
       {
         hintLevel: 3,
@@ -434,6 +471,9 @@ export const BENCH_POSITIONS: BenchPosition[] = [
     cases: [
       {
         hintLevel: 1,
+      },
+      {
+        hintLevel: 3,
       },
     ],
   },

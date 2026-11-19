@@ -35,6 +35,29 @@ describe("messageLeaksMove", () => {
     ).toBe(true);
   });
 
+  it("repère la pièce nommée avec sa case d'arrivée (« ta dame … f7 »)", () => {
+    const fen =
+      "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4";
+    const mateMove = { from: "h5", to: "f7" } as const;
+    expect(
+      messageLeaksMove("Utilise ta dame pour viser f7 ?", fen, mateMove),
+    ).toBe(true);
+    expect(
+      messageLeaksMove("La case f7 est-elle bien défendue ?", fen, mateMove),
+    ).toBe(false);
+    expect(
+      messageLeaksMove("Ta dame est très active, non ?", fen, mateMove),
+    ).toBe(false);
+  });
+
+  it("repère une prise écrite sans le « x » (Ce5 pour Cxe5)", () => {
+    const fen =
+      "r1bqkbnr/pppp1ppp/8/4p3/2B1n3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 4";
+    expect(
+      messageLeaksMove("Pense à Ce5 !", fen, { from: "f3", to: "e5" }),
+    ).toBe(true);
+  });
+
   it("laisse passer un vrai indice", () => {
     expect(
       messageLeaksMove(

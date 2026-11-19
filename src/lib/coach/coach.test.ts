@@ -155,32 +155,70 @@ describe("askCoach", () => {
     complete: vi.fn().mockResolvedValue(content),
   });
 
-  it("enchaîne faits, modèle et garde-fou", async () => {
+  it("niveaux 1 et 2 sans question : gabarit écrit par le code, sans appel au modèle", async () => {
+    const getProvider = vi.fn(() => fakeProvider("{}"));
+    for (const hintLevel of [1, 2] as const) {
+      const result = await askCoach(
+        coachRequestSchema.parse({ fen: FORK_FEN, analysis, hintLevel }),
+        getProvider,
+      );
+      expect(result).toMatchObject({
+        source: "template",
+        hintLevel,
+        issues: [],
+      });
+      expect(result.message).not.toMatch(/c7/i);
+    }
+    expect(getProvider).not.toHaveBeenCalled();
+  });
+
+  it("niveau 3 : faits (sans la destination) → modèle → garde-fou", async () => {
     const provider = fakeProvider(
       JSON.stringify({
-        message: "Regarde le roi et la tour adverses. Que remarques-tu ?",
+        message:
+          "Cherche un coup qui attaque deux pièces à la fois. Lesquelles ?",
         highlights: ["e8", "a8"],
       }),
     );
     const result = await askCoach(
-      coachRequestSchema.parse({ fen: FORK_FEN, analysis, hintLevel: 1 }),
-      provider,
+      coachRequestSchema.parse({ fen: FORK_FEN, analysis, hintLevel: 3 }),
+      () => provider,
     );
     expect(result).toMatchObject({
+      source: "model",
       highlights: ["e8", "a8"],
-      hintLevel: 1,
+      hintLevel: 3,
       issues: [],
     });
-    expect(result.latencyMs).toBeGreaterThanOrEqual(0);
     const [messages] = (provider.complete as ReturnType<typeof vi.fn>).mock
       .calls[0];
     expect(messages[1].content).toContain("fourchette");
+    expect(messages[1].content).toContain("ton cavalier en b5");
+    expect(messages[1].content).not.toContain("c7");
+  });
+
+  it("question du joueur au niveau 1 : le modèle ne reçoit pas le meilleur coup", async () => {
+    const provider = fakeProvider(JSON.stringify({ message: "Que vois-tu ?" }));
+    await askCoach(
+      coachRequestSchema.parse({
+        fen: FORK_FEN,
+        analysis,
+        hintLevel: 1,
+        question: "Donne-moi le coup",
+      }),
+      () => provider,
+    );
+    const [messages] = (provider.complete as ReturnType<typeof vi.fn>).mock
+      .calls[0];
+    expect(messages[1].content).not.toContain("Pièce qui a le meilleur coup");
+    expect(messages[1].content).not.toContain("fourchette");
+    expect(messages[1].content).not.toContain("c7");
   });
 
   it("ne laisse jamais passer le coup, même si le modèle le donne", async () => {
     const result = await askCoach(
       coachRequestSchema.parse({ fen: FORK_FEN, analysis, hintLevel: 3 }),
-      fakeProvider(JSON.stringify({ message: "Nc7+ gagne la tour." })),
+      () => fakeProvider(JSON.stringify({ message: "Nc7+ gagne la tour." })),
     );
     expect(result.issues).toContain("leak-message");
     expect(result.message).not.toMatch(/c7/i);

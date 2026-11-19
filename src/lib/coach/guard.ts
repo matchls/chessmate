@@ -55,6 +55,16 @@ function extractJson(raw: string): unknown {
   return JSON.parse(trimmed);
 }
 
+/** Noms des pièces tels qu'ils apparaissent dans un message (« dame », « cavalier »…). */
+const PIECE_NAMES: Record<string, string> = {
+  p: "pion",
+  n: "cavalier",
+  b: "fou",
+  r: "tour",
+  q: "dame",
+  k: "roi",
+};
+
 /** Lettres des pièces en anglais (notation de chess.js) et en français. */
 const FRENCH_PIECE: Record<string, string> = {
   N: "C",
@@ -73,9 +83,16 @@ export function bestMoveSpellings(fen: string, bestMove: MoveInput): string[] {
   } catch {
     return [];
   }
-  const spellings = new Set([san, `${bestMove.from}${bestMove.to}`]);
+  const spellings = new Set([
+    san,
+    san.replace("x", ""),
+    `${bestMove.from}${bestMove.to}`,
+  ]);
   const piece = san[0];
-  if (FRENCH_PIECE[piece]) spellings.add(FRENCH_PIECE[piece] + san.slice(1));
+  if (FRENCH_PIECE[piece]) {
+    spellings.add(FRENCH_PIECE[piece] + san.slice(1));
+    spellings.add(FRENCH_PIECE[piece] + san.slice(1).replace("x", ""));
+  }
   return [...spellings];
 }
 
@@ -91,9 +108,16 @@ export function messageLeaksMove(
       text,
     ),
   );
-  const mentions = (square: string) =>
-    new RegExp(`(^|[^a-z0-9])${square}($|[^a-z0-9])`).test(text);
-  return spelled || (mentions(bestMove.from) && mentions(bestMove.to));
+  const mentions = (word: string) =>
+    new RegExp(`(^|[^a-zà-ÿ0-9])${word}($|[^a-zà-ÿ0-9])`).test(text);
+  if (spelled || !mentions(bestMove.to)) return spelled;
+  // La case d'arrivée est citée : c'est une fuite si on désigne aussi la pièce qui y va,
+  // par sa case de départ (« b5 … c7 ») ou par son nom (« ta dame … f7 »).
+  const piece = new Chess(fen).get(bestMove.from);
+  const pieceName = piece ? PIECE_NAMES[piece.type] : undefined;
+  return (
+    mentions(bestMove.from) || (pieceName !== undefined && mentions(pieceName))
+  );
 }
 
 /** Une flèche est cohérente si une pièce est sur la case de départ et attaque la case d'arrivée. */

@@ -49,17 +49,17 @@ export async function POST(request: Request) {
   if (!parsed.success) return error(400, "Demande invalide.");
 
   try {
-    const provider = createProvider();
-    const { issues, latencyMs, ...reply } = await askCoach(
+    let model: string | undefined;
+    const { issues, latencyMs, source, ...reply } = await askCoach(
       parsed.data,
-      provider,
+      () => {
+        const provider = createProvider();
+        model = provider.model;
+        return provider;
+      },
     );
     if (issues.length > 0) {
-      console.warn("[coach] garde-fou", {
-        issues,
-        model: provider.model,
-        latencyMs,
-      });
+      console.warn("[coach] garde-fou", { issues, model, latencyMs, source });
     }
     return Response.json(reply satisfies CoachResponse);
   } catch (caught) {
