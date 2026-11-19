@@ -267,8 +267,20 @@ function list(items: string[]): string {
   return items.length === 0 ? "aucune" : items.join(" ; ");
 }
 
+/**
+ * Ce que le modèle a le droit de savoir du meilleur coup (« besoin d'en connaître ») :
+ * - `none` : rien, seulement l'évaluation (niveau 1) ;
+ * - `piece` : la pièce qui a le meilleur coup, sans sa destination (niveau 2) ;
+ * - `idea` : la pièce, le thème et la cible d'une prise, sans la case d'arrivée (niveau 3) ;
+ * - `full` : tout, coup compris (tests et outils internes uniquement).
+ */
+export type SecretLevel = "none" | "piece" | "idea" | "full";
+
 /** Met les faits en quelques lignes compactes pour le prompt du coach. */
-export function factsToPrompt(facts: PositionFacts): string {
+export function factsToPrompt(
+  facts: PositionFacts,
+  secretLevel: SecretLevel = "full",
+): string {
   const me = facts.turn;
   const lines = [
     `Trait : ${colorName(me)} (le joueur que tu aides)${facts.inCheck ? ", en échec" : ""}.`,
@@ -303,10 +315,12 @@ export function factsToPrompt(facts: PositionFacts): string {
   );
 
   const { bestMove, themes, evaluation } = facts.secret;
+  const showPiece = secretLevel !== "none";
+  const showIdea = secretLevel === "idea" || secretLevel === "full";
   if (bestMove || evaluation) {
     lines.push("", "SECRET (pour te guider, NE JAMAIS le révéler au joueur) :");
     if (evaluation) lines.push(`- Évaluation : ${evaluation}.`);
-    if (bestMove) {
+    if (bestMove && secretLevel === "full") {
       const ref = pieceRef(bestMove.piece, me, bestMove.from, me);
       const action = bestMove.captured
         ? `prend ${pieceRef(bestMove.captured, opponentOf(me), bestMove.to, me)}`
@@ -319,8 +333,21 @@ export function factsToPrompt(facts: PositionFacts): string {
       lines.push(
         `- Meilleur coup : ${ref} ${action}${check} (${bestMove.san}).`,
       );
+    } else if (bestMove && showPiece) {
+      // On ne donne que ce que le coach a le droit de suggérer à ce niveau : jamais la case
+      // d'arrivée (sauf la pièce à prendre, au niveau « idée »).
+      lines.push(
+        `- Pièce qui a le meilleur coup : ${pieceRef(bestMove.piece, me, bestMove.from, me)} (ne dis jamais où elle va).`,
+      );
+      if (showIdea && bestMove.captured) {
+        lines.push(
+          `- Cible : ${pieceRef(bestMove.captured, opponentOf(me), bestMove.to, me)}.`,
+        );
+      }
+      if (showIdea && bestMove.isCheck)
+        lines.push("- Le meilleur coup donne échec.");
     }
-    if (themes.length > 0) {
+    if (showIdea && themes.length > 0) {
       lines.push(
         `- Thème : ${themes.map((theme) => THEME_LABEL[theme]).join(", ")}.`,
       );

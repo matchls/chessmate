@@ -55,3 +55,8 @@ export function withIndefinite(type: PieceSymbol): string {
 export function agree(type: PieceSymbol, participle: string): string {
   return PIECES[type].feminine ? `${participle}e` : participle;
 }
+
+/** « il » ou « elle » selon le genre de la pièce. */
+export function pronoun(type: PieceSymbol): string {
+  return PIECES[type].feminine ? "elle" : "il";
+}

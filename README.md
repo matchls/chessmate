@@ -25,16 +25,17 @@ L'app tourne sur http://localhost:3000.
 
 ## Scripts
 
-| Commande            | Rôle                                 |
-| ------------------- | ------------------------------------ |
-| `pnpm dev`          | Serveur de développement             |
-| `pnpm build`        | Build de production                  |
-| `pnpm lint`         | ESLint                               |
-| `pnpm format`       | Formatage Prettier                   |
-| `pnpm format:check` | Vérifie le formatage (utilisé en CI) |
-| `pnpm typecheck`    | Vérification TypeScript              |
-| `pnpm test`         | Tests unitaires Vitest               |
-| `pnpm check`        | Toutes les vérifications de la CI    |
+| Commande            | Rôle                                                   |
+| ------------------- | ------------------------------------------------------ |
+| `pnpm dev`          | Serveur de développement                               |
+| `pnpm build`        | Build de production                                    |
+| `pnpm lint`         | ESLint                                                 |
+| `pnpm format`       | Formatage Prettier                                     |
+| `pnpm format:check` | Vérifie le formatage (utilisé en CI)                   |
+| `pnpm typecheck`    | Vérification TypeScript                                |
+| `pnpm test`         | Tests unitaires Vitest                                 |
+| `pnpm check`        | Toutes les vérifications de la CI                      |
+| `pnpm coach:bench`  | Banc d'essai du coach (vraie API, rapport dans `tmp/`) |
 
 ## Workflow
 

@@ -45,7 +45,8 @@ entretien d'embauche**.
 - chess.js (règles) + react-chessboard (affichage)
 - Stockfish WASM dans un Web Worker (côté navigateur) : une instance bot, une instance analyse
 - Coach : route serveur `/api/coach` + interface `LLMProvider` (fournisseur choisi par
-  `COACH_PROVIDER`) ; Mistral gratuit en local et sur les previews, production à décider ;
+  `COACH_PROVIDER`) ; Groq gratuit en local et sur les previews (`openai/gpt-oss-120b`), production
+  à décider ; extracteur de faits (`src/lib/coach/facts.ts`) ; garde-fou (`guard.ts`) ;
   sortie JSON validée par Zod
 - PostgreSQL Neon + Prisma, auth Better Auth (étapes ultérieures)
 - Gestionnaire de paquets : **pnpm uniquement**
@@ -71,6 +72,7 @@ Issue → plan → feu vert → branche → code + tests → pnpm check → PR (
 - `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm build`
 - `pnpm format` — remet le code en forme ; `pnpm format:check` vérifie sans modifier
 - `pnpm check` — tout ce que fait la CI ; lancé automatiquement avant chaque push
+- `pnpm coach:bench` — banc d'essai du coach sur 20 positions (vraie API, clé dans `.env.local`), rapport dans `tmp/`
 
 ## Structure
 

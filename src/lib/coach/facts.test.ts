@@ -207,3 +207,42 @@ describe("factsToPrompt", () => {
     );
   });
 });
+
+describe("factsToPrompt selon le niveau de secret", () => {
+  const fen = "r3k3/8/8/1N6/8/8/8/4K3 w - - 0 1";
+  const facts = extractFacts({
+    fen,
+    analysis: analysisWith({ from: "b5", to: "c7" }),
+  });
+
+  it("none : ni la pièce ni le thème", () => {
+    const text = factsToPrompt(facts, "none");
+    expect(text).not.toContain("Pièce qui a le meilleur coup");
+    expect(text).not.toContain("fourchette");
+    expect(text).not.toContain("c7");
+  });
+
+  it("piece : la pièce, sans destination ni thème", () => {
+    const text = factsToPrompt(facts, "piece");
+    expect(text).toContain("Pièce qui a le meilleur coup : ton cavalier en b5");
+    expect(text).not.toContain("fourchette");
+    expect(text).not.toContain("c7");
+  });
+
+  it("idea : la pièce et le thème, toujours sans destination", () => {
+    const text = factsToPrompt(facts, "idea");
+    expect(text).toContain("fourchette");
+    expect(text).toContain("Le meilleur coup donne échec.");
+    expect(text).not.toContain("c7");
+  });
+
+  it("idea : pour une prise, la cible est donnée", () => {
+    const capture = extractFacts({
+      fen: "4k3/8/8/3q4/8/4N3/8/4K3 w - - 0 1",
+      analysis: analysisWith({ from: "e3", to: "d5" }),
+    });
+    expect(factsToPrompt(capture, "idea")).toContain(
+      "Cible : la dame adverse en d5.",
+    );
+  });
+});
