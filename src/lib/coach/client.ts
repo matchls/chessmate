@@ -1,10 +1,15 @@
 import { z } from "zod";
 import type { MoveClass, PositionAnalysis } from "@/lib/engine/evaluation";
+import type { MoveInput } from "@/lib/chess/game";
 import {
+  EXPLAIN_STEPS,
   HINT_LEVELS,
   isSquare,
   type coachRequestSchema,
   type CoachResponse,
+  type explainRequestSchema,
+  type ExplainResponse,
+  type ExplainStep,
   type HintLevel,
 } from "@/lib/coach/schema";
 
@@ -100,10 +105,15 @@ type RequestOptions = {
   signal?: AbortSignal;
 };
 
-export async function requestCoach(
-  body: CoachRequestInput,
-  { fetchImpl = fetch, signal }: RequestOptions = {},
-): Promise<CoachOutcome> {
+/** Envoie une demande à `/api/coach` et vérifie la réponse avec le schéma donné. */
+async function postToCoach<T>(
+  body: unknown,
+  schema: z.ZodType<T>,
+  { fetchImpl = fetch, signal }: RequestOptions,
+): Promise<
+  | { ok: true; response: T }
+  | { ok: false; kind: CoachErrorKind; message: string }
+> {
   let response: Response;
   try {
     response = await fetchImpl(COACH_ENDPOINT, {
@@ -136,7 +146,7 @@ export async function requestCoach(
   }
 
   const json: unknown = await response.json().catch(() => null);
-  const parsed = coachResponseSchema.safeParse(json);
+  const parsed = schema.safeParse(json);
   if (!parsed.success) {
     return {
       ok: false,
@@ -144,5 +154,81 @@ export async function requestCoach(
       message: MESSAGES["invalid-response"],
     };
   }
-  return { ok: true, response: parsed.data as CoachResponse };
+  return { ok: true, response: parsed.data };
+}
+
+export async function requestCoach(
+  body: CoachRequestInput,
+  options: RequestOptions = {},
+): Promise<CoachOutcome> {
+  const outcome = await postToCoach(body, coachResponseSchema, options);
+  return outcome.ok
+    ? { ok: true, response: outcome.response as CoachResponse }
+    : outcome;
+}
+
+// --- Explication d'un coup signalé (« Pourquoi ? » puis « Voir la solution ») ---
+
+export type ExplainRequestInput = z.input<typeof explainRequestSchema>;
+
+export type BuildExplainInput = {
+  step: ExplainStep;
+  fenBefore: string;
+  played: MoveInput;
+  moveClass: Exclude<MoveClass, "good">;
+  /** Analyses de la position d'avant (meilleur coup obligatoire) et d'après. */
+  before: PositionAnalysis & { bestMove: MoveInput };
+  after?: PositionAnalysis;
+};
+
+const trimAnalysis = <A extends PositionAnalysis>(analysis: A) => ({
+  score: analysis.score,
+  bestMove: analysis.bestMove,
+  pv: analysis.pv.slice(0, PV_MAX),
+  depth: analysis.depth,
+});
+
+export function buildExplainRequest({
+  step,
+  fenBefore,
+  played,
+  moveClass,
+  before,
+  after,
+}: BuildExplainInput): ExplainRequestInput {
+  return {
+    kind: "explain",
+    step,
+    fenBefore,
+    played: {
+      from: played.from,
+      to: played.to,
+      ...(played.promotion ? { promotion: played.promotion } : {}),
+    },
+    moveClass,
+    before: { ...trimAnalysis(before), bestMove: before.bestMove },
+    ...(after ? { after: trimAnalysis(after) } : {}),
+  };
+}
+
+const explainResponseSchema = z.object({
+  message: z.string().min(1),
+  highlights: z.array(squareSchema),
+  arrows: z.array(z.object({ from: squareSchema, to: squareSchema })),
+  step: z.enum(EXPLAIN_STEPS),
+  board: z.enum(["before", "after"]),
+});
+
+export type ExplainOutcome =
+  | { ok: true; response: ExplainResponse }
+  | { ok: false; kind: CoachErrorKind; message: string };
+
+export async function requestExplain(
+  body: ExplainRequestInput,
+  options: RequestOptions = {},
+): Promise<ExplainOutcome> {
+  const outcome = await postToCoach(body, explainResponseSchema, options);
+  return outcome.ok
+    ? { ok: true, response: outcome.response as ExplainResponse }
+    : outcome;
 }

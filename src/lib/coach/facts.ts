@@ -77,7 +77,7 @@ export type ExtractInput = {
   lastMove?: { san: string; moveClass?: MoveClass };
 };
 
-const opponentOf = (color: Color): Color => (color === "w" ? "b" : "w");
+export const opponentOf = (color: Color): Color => (color === "w" ? "b" : "w");
 
 function piecesOf(game: Chess, color: Color): PieceOnSquare[] {
   return game
@@ -157,7 +157,7 @@ function toMoveFact(move: Move, after: Chess): MoveFact {
   };
 }
 
-function detectThemes(
+export function detectThemes(
   fen: string,
   move: MoveInput,
   enemyHanging: readonly HangingPiece[],

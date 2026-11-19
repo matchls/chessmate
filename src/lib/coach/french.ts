@@ -60,3 +60,21 @@ export function agree(type: PieceSymbol, participle: string): string {
 export function pronoun(type: PieceSymbol): string {
   return PIECES[type].feminine ? "elle" : "il";
 }
+
+/** Pronom complément : « le » ou « la » selon le genre de la pièce. */
+export function objectPronoun(type: PieceSymbol): string {
+  return PIECES[type].feminine ? "la" : "le";
+}
+
+const FRENCH_LETTER: Record<string, string> = {
+  N: "C",
+  B: "F",
+  R: "T",
+  Q: "D",
+  K: "R",
+};
+
+/** Notation française d'un coup (« Nf3 » → « Cf3 », « e8=Q » → « e8=D »). */
+export function frenchSan(san: string): string {
+  return san.replace(/[NBRQK]/g, (letter) => FRENCH_LETTER[letter]);
+}

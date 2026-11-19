@@ -1,15 +1,21 @@
-import { askCoach } from "@/lib/coach/coach";
+import { askCoach, askExplain } from "@/lib/coach/coach";
 import {
   createProvider,
   ProviderError,
   ProviderNotConfiguredError,
 } from "@/lib/coach/provider";
 import { COACH_RATE_LIMIT, createRateLimiter } from "@/lib/coach/rate-limit";
-import { coachRequestSchema, type CoachResponse } from "@/lib/coach/schema";
+import {
+  coachRequestSchema,
+  explainRequestSchema,
+  type CoachResponse,
+  type ExplainResponse,
+} from "@/lib/coach/schema";
 
 /**
- * POST /api/coach : demande un indice au coach.
- * Trajet : limite de requêtes → vérification de l'entrée → faits → modèle → garde-fou.
+ * POST /api/coach : demande un indice au coach, ou l'explication d'un coup signalé
+ * (`kind: "explain"`). Trajet : limite de requêtes → vérification de l'entrée → faits →
+ * gabarit ou modèle → garde-fou.
  * Les clés d'API restent ici, côté serveur ; le navigateur ne les voit jamais.
  */
 
@@ -45,18 +51,42 @@ export async function POST(request: Request) {
   if (length > MAX_BODY_BYTES) return error(413, "Demande trop volumineuse.");
 
   const body: unknown = await request.json().catch(() => null);
-  const parsed = coachRequestSchema.safeParse(body);
-  if (!parsed.success) return error(400, "Demande invalide.");
+  const isExplain =
+    typeof body === "object" &&
+    body !== null &&
+    (body as { kind?: unknown }).kind === "explain";
+
+  let model: string | undefined;
+  const getProvider = () => {
+    const provider = createProvider();
+    model = provider.model;
+    return provider;
+  };
 
   try {
-    let model: string | undefined;
+    if (isExplain) {
+      const parsed = explainRequestSchema.safeParse(body);
+      if (!parsed.success) return error(400, "Demande invalide.");
+      const { issues, latencyMs, source, ...reply } = await askExplain(
+        parsed.data,
+        getProvider,
+      );
+      if (issues.length > 0) {
+        console.warn("[coach] garde-fou (explication)", {
+          issues,
+          model,
+          latencyMs,
+          source,
+        });
+      }
+      return Response.json(reply satisfies ExplainResponse);
+    }
+
+    const parsed = coachRequestSchema.safeParse(body);
+    if (!parsed.success) return error(400, "Demande invalide.");
     const { issues, latencyMs, source, ...reply } = await askCoach(
       parsed.data,
-      () => {
-        const provider = createProvider();
-        model = provider.model;
-        return provider;
-      },
+      getProvider,
     );
     if (issues.length > 0) {
       console.warn("[coach] garde-fou", { issues, model, latencyMs, source });

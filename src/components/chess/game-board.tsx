@@ -4,6 +4,7 @@ import type { Square } from "chess.js";
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
@@ -20,6 +21,7 @@ import { ReviewControls } from "@/components/chess/review-controls";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCoach } from "@/hooks/use-coach";
+import { useExplain } from "@/hooks/use-explain";
 import { usePositionAnalysis } from "@/hooks/use-position-analysis";
 import { useStockfish } from "@/hooks/use-stockfish";
 import {
@@ -54,7 +56,14 @@ import {
   type BotLevelId,
 } from "@/lib/engine/levels";
 import { classifyMove, type MoveClass } from "@/lib/engine/evaluation";
-import { buildCoachRequest } from "@/lib/coach/client";
+import { buildCoachRequest, buildExplainRequest } from "@/lib/coach/client";
+import {
+  canExplain,
+  explainHeading,
+  explanationVisuals,
+  whyLabel,
+} from "@/lib/coach/explain-session";
+import type { ExplainStep } from "@/lib/coach/schema";
 import type { HintLevel } from "@/lib/coach/schema";
 import {
   coachArrows,
@@ -135,6 +144,46 @@ export function GameBoard() {
 
   // Coach : à la demande seulement, sur la position affichée. Sa réponse disparaît au coup suivant.
   const coach = useCoach(fen);
+
+  // « Pourquoi ? » sur un coup signalé : le coup qui a mené à la position affichée, ou celui
+  // déjà en cours d'explication.
+  const explain = useExplain(moves.length);
+  const explanation = explain.explanation;
+  const candidate = explanation ? explanation.moveIndex : shown - 1;
+  const candidateClass = classifications[candidate];
+  const candidateBest = analyses[candidate]?.bestMove;
+  const explainable =
+    candidateClass !== undefined &&
+    candidateClass !== "good" &&
+    !!candidateBest &&
+    canExplain({
+      moveIndex: candidate,
+      moveClass: candidateClass,
+      mode,
+      playerColor: sideToColor(playerSide),
+    });
+
+  function askExplanation(step: ExplainStep) {
+    const before = analyses[candidate];
+    if (!explainable || !before?.bestMove) return;
+    setSelected(null);
+    // « Pourquoi » : position d'après le coup ; « solution » : position d'avant.
+    setView(
+      step === "why" ? viewAfterMove(candidate, moves.length) : candidate,
+    );
+    void explain.ask(
+      candidate,
+      step,
+      buildExplainRequest({
+        step,
+        fenBefore: positions[candidate].fen,
+        played: moves[candidate],
+        moveClass: candidateClass,
+        before: { ...before, bestMove: before.bestMove },
+        after: analyses[candidate + 1],
+      }),
+    );
+  }
   const currentAnalysis = analyses[moves.length];
   const coachBlockedReason = reviewing
     ? "Reviens au direct pour demander un indice."
@@ -184,6 +233,7 @@ export function GameBoard() {
 
   function review(action: ReviewAction) {
     setSelected(null);
+    explain.reset();
     setView((current) => navigate(current, moves.length, action));
   }
 
@@ -191,6 +241,11 @@ export function GameBoard() {
   // ni pendant le choix d'une promotion.
   const total = moves.length;
   const promoting = pendingPromotion !== null;
+  // Naviguer au clavier ferme l'explication en cours (référence stable pour l'écouteur).
+  const resetExplainRef = useRef(explain.reset);
+  useEffect(() => {
+    resetExplainRef.current = explain.reset;
+  });
   useEffect(() => {
     if (promoting) return;
     function onKeyDown(event: KeyboardEvent) {
@@ -204,6 +259,7 @@ export function GameBoard() {
       if (!action) return;
       event.preventDefault();
       setSelected(null);
+      resetExplainRef.current();
       setView((current) => navigate(current, total, action));
     }
     window.addEventListener("keydown", onKeyDown);
@@ -264,6 +320,7 @@ export function GameBoard() {
     setFlipped(false);
     setView(null);
     coach.reset();
+    explain.reset();
     if (next.side) setPlayerSide(next.side);
     if (next.mode) setMode(next.mode);
     void engineRef.current?.newGame();
@@ -283,7 +340,12 @@ export function GameBoard() {
     }
   }
 
-  const coachReply = reviewing ? null : coach.session.latest;
+  // Visuels sur l'échiquier : ceux de l'explication en cours, sinon ceux du coach (au direct).
+  const coachReply = explanation
+    ? (explanationVisuals(explanation) ?? null)
+    : reviewing
+      ? null
+      : coach.session.latest;
   const coachHighlights = coachSquareStyles(coachReply?.highlights ?? []);
   const coachBoardArrows = coachArrows(coachReply?.arrows ?? []);
 
@@ -341,6 +403,21 @@ export function GameBoard() {
 
         <CoachPanel
           session={coach.session}
+          explain={
+            explainable
+              ? {
+                  heading: explainHeading(
+                    candidate,
+                    sanHistory[candidate],
+                    candidateClass,
+                  ),
+                  whyLabel: whyLabel(candidateClass),
+                  explanation,
+                  onWhy: () => askExplanation("why"),
+                  onSolution: () => askExplanation("solution"),
+                }
+              : null
+          }
           blockedReason={coachBlockedReason}
           onHint={() => {
             if (!coachBlockedReason) coach.askHint(coachRequest);
@@ -412,6 +489,7 @@ export function GameBoard() {
               shown={shown}
               onSelect={(index) => {
                 setSelected(null);
+                explain.reset();
                 setView(viewAfterMove(index, moves.length));
               }}
             />

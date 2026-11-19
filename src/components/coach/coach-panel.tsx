@@ -4,14 +4,28 @@ import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { QUESTION_MAX_LENGTH } from "@/lib/coach/client";
+import type { Explanation } from "@/lib/coach/explain-session";
 import {
   hintButtonLabel,
   nextHintLevel,
   type CoachSession,
 } from "@/lib/coach/session";
 
+export type ExplainPanelProps = {
+  /** Coup concerné, par exemple « 4. Qf3?! ». */
+  heading: string;
+  /** Texte du bouton « Pourquoi ? ». */
+  whyLabel: string;
+  /** Explication en cours pour ce coup (null : pas encore demandée). */
+  explanation: Explanation | null;
+  onWhy: () => void;
+  onSolution: () => void;
+};
+
 type CoachPanelProps = {
   session: CoachSession;
+  /** « Pourquoi ? » sur le coup affiché, s'il est signalé (null : rien à expliquer). */
+  explain?: ExplainPanelProps | null;
   /** Raison pour laquelle on ne peut pas demander maintenant (null : on peut). */
   blockedReason: string | null;
   onHint: () => void;
@@ -25,6 +39,7 @@ type CoachPanelProps = {
  */
 export function CoachPanel({
   session,
+  explain,
   blockedReason,
   onHint,
   onQuestion,
@@ -49,6 +64,8 @@ export function CoachPanel({
         <CardTitle>Coach</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        {explain && <ExplainSection {...explain} />}
+
         <div
           aria-live="polite"
           className="flex min-h-12 flex-col gap-2 text-sm"
@@ -129,5 +146,60 @@ export function CoachPanel({
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+/** « Pourquoi ? » puis « Voir la solution » sur un coup signalé. */
+function ExplainSection({
+  heading,
+  whyLabel,
+  explanation,
+  onWhy,
+  onSolution,
+}: ExplainPanelProps) {
+  const why = explanation?.why;
+  const solution = explanation?.solution;
+  const loading = explanation?.loading ?? false;
+  return (
+    <section
+      aria-live="polite"
+      className="border-border flex flex-col gap-2 border-b pb-3 text-sm"
+    >
+      <span className="text-muted-foreground text-xs font-medium">
+        Coup {heading}
+      </span>
+      {!explanation && (
+        <Button onClick={onWhy} className="self-start">
+          {whyLabel}
+        </Button>
+      )}
+      {why && <p>{why.message}</p>}
+      {solution && (
+        <div className="flex flex-col gap-0.5">
+          <span className="text-muted-foreground text-xs font-medium">
+            Solution
+          </span>
+          <p>{solution.message}</p>
+        </div>
+      )}
+      {loading && <p className="text-muted-foreground">Le coach réfléchit…</p>}
+      {explanation?.error && (
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-destructive">{explanation.error}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={why ? onSolution : onWhy}
+          >
+            Réessayer
+          </Button>
+        </div>
+      )}
+      {why && !solution && !loading && !explanation?.error && (
+        <Button variant="outline" onClick={onSolution} className="self-start">
+          Voir la solution
+        </Button>
+      )}
+    </section>
   );
 }
