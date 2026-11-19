@@ -11,6 +11,11 @@ des questions et explique pourquoi un coup est bon ou dangereux.
 Next.js 16 · TypeScript · Tailwind CSS v4 · shadcn/ui · chess.js · react-chessboard ·
 Stockfish WASM · API Claude · PostgreSQL (Neon) · Prisma · Vercel
 
+## Design system
+
+Couleurs, typographie et composants : [`docs/design-system.md`](docs/design-system.md).
+Planche visuelle dans l'appli : page `/design-system` (en local : http://localhost:3000/design-system).
+
 ## Démarrer
 
 Prérequis : Node 22+ et pnpm (`corepack enable` ou `npm i -g pnpm`).

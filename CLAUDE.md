@@ -89,10 +89,22 @@ docs/           documentation (workflow.md)
   forme de fonctions pures, avec un fichier `*.test.ts` à côté.
 - Les composants restent fins : ils appellent `src/lib`, ils ne contiennent pas la logique.
 
+## Design system
+
+Tout écran ou composant respecte `docs/design-system.md` (à lire avant d'écrire de l'interface) :
+
+- couleurs uniquement via les tokens (`bg-noyer`, `text-or`, `text-success`…), jamais de couleur
+  en dur (`#…`, `rgb(…)`, `text-red-600`…) ni de classe `dark:` ;
+- composants shadcn habillés par les tokens, sans modifier leurs classes ;
+- texte lisible selon la surface (fond noyer ou fond parchemin) ;
+- tout nouveau composant est ajouté à la page `/design-system`.
+
 ## Où trouver quoi
 
 | Besoin                                      | Fichier                  |
 | ------------------------------------------- | ------------------------ |
 | Issue → plan → PR → fusion, qui fusionne    | `docs/workflow.md`       |
 | Modèle, style et permissions de Claude Code | `.claude/settings.json`  |
+| Couleurs, typo, composants (design system)  | `docs/design-system.md`  |
+| Planche visuelle des composants             | page `/design-system`    |
 | Roadmap et features                         | Notion (fiche ChessMate) |
