@@ -44,6 +44,7 @@ import {
 } from "@/lib/engine/levels";
 import { classifyMove, type MoveClass } from "@/lib/engine/evaluation";
 import { buildCoachRequest } from "@/lib/coach/client";
+import type { HintLevel } from "@/lib/coach/schema";
 import {
   coachArrows,
   coachSquareStyles,
@@ -121,21 +122,17 @@ export function GameBoard() {
         ? "Analyse de la position…"
         : null;
 
-  function askCoach(question?: string) {
-    if (coachBlockedReason) return;
+  /** Prépare la demande au coach pour la position affichée, au niveau voulu. */
+  function coachRequest(hintLevel: HintLevel, question?: string) {
     const san = sanHistory.at(-1);
     const moveClass = classifications.at(-1);
-    void coach.ask(
-      buildCoachRequest({
-        fen,
-        hintLevel: 1,
-        analysis: currentAnalysis,
-        lastMove: san
-          ? { san, ...(moveClass ? { moveClass } : {}) }
-          : undefined,
-        question,
-      }),
-    );
+    return buildCoachRequest({
+      fen,
+      hintLevel,
+      analysis: currentAnalysis,
+      lastMove: san ? { san, ...(moveClass ? { moveClass } : {}) } : undefined,
+      question,
+    });
   }
 
   // Quand c'est au bot de jouer : on demande un coup à Stockfish après un court délai.
@@ -230,8 +227,7 @@ export function GameBoard() {
     }
   }
 
-  const coachReply =
-    coach.state.status === "answer" ? coach.state.response : null;
+  const coachReply = coach.session.latest;
   const coachHighlights = coachSquareStyles(coachReply?.highlights ?? []);
   const coachBoardArrows = coachArrows(coachReply?.arrows ?? []);
 
@@ -271,10 +267,14 @@ export function GameBoard() {
         </div>
 
         <CoachPanel
-          state={coach.state}
+          session={coach.session}
           blockedReason={coachBlockedReason}
-          onHint={() => askCoach()}
-          onQuestion={(question) => askCoach(question)}
+          onHint={() => {
+            if (!coachBlockedReason) coach.askHint(coachRequest);
+          }}
+          onQuestion={(question) => {
+            if (!coachBlockedReason) coach.askQuestion(question, coachRequest);
+          }}
         />
 
         <div className="flex flex-wrap gap-2">

@@ -3,11 +3,15 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { CoachState } from "@/hooks/use-coach";
 import { QUESTION_MAX_LENGTH } from "@/lib/coach/client";
+import {
+  hintButtonLabel,
+  nextHintLevel,
+  type CoachSession,
+} from "@/lib/coach/session";
 
 type CoachPanelProps = {
-  state: CoachState;
+  session: CoachSession;
   /** Raison pour laquelle on ne peut pas demander maintenant (null : on peut). */
   blockedReason: string | null;
   onHint: () => void;
@@ -15,23 +19,26 @@ type CoachPanelProps = {
 };
 
 /**
- * Panneau du coach : un indice à la demande, ou une question libre. Le coach n'intervient
- * jamais de lui-même, et la partie reste jouable s'il échoue.
+ * Panneau du coach : des indices de plus en plus précis (trois au maximum par position),
+ * ou une question libre. Le coach n'intervient jamais de lui-même, et la partie reste
+ * jouable s'il échoue.
  */
 export function CoachPanel({
-  state,
+  session,
   blockedReason,
   onHint,
   onQuestion,
 }: CoachPanelProps) {
   const [question, setQuestion] = useState("");
-  const loading = state.status === "loading";
-  const disabled = blockedReason !== null || loading;
+  const blocked = blockedReason !== null || session.loading;
+  const noMoreHints = nextHintLevel(session) === null;
+  const empty =
+    session.hints.length === 0 && !session.exchange && !session.loading;
 
   function submit(event: FormEvent) {
     event.preventDefault();
     const trimmed = question.trim();
-    if (!trimmed || disabled) return;
+    if (!trimmed || blocked) return;
     onQuestion(trimmed);
     setQuestion("");
   }
@@ -44,31 +51,48 @@ export function CoachPanel({
       <CardContent className="flex flex-col gap-3">
         <div
           aria-live="polite"
-          className="flex min-h-12 flex-col gap-1 text-sm"
+          className="flex min-h-12 flex-col gap-2 text-sm"
         >
-          {"question" in state && state.question && (
-            <p className="text-muted-foreground italic">
-              Ta question : {state.question}
-            </p>
-          )}
-          {state.status === "idle" && (
+          {empty && (
             <p className="text-muted-foreground">
-              Bloqué ? Demande un indice : le coach te montre où regarder, sans
-              jamais te donner le coup.
+              Bloqué ? Demande un indice : le coach t&apos;en dit un peu plus à
+              chaque fois, sans jamais te donner le coup.
             </p>
           )}
-          {state.status === "loading" && (
+
+          {session.hints.length > 0 && (
+            <ol className="flex flex-col gap-2">
+              {session.hints.map((hint) => (
+                <li key={hint.hintLevel} className="flex flex-col gap-0.5">
+                  <span className="text-muted-foreground text-xs font-medium">
+                    Indice {hint.hintLevel}
+                  </span>
+                  <p>{hint.message}</p>
+                </li>
+              ))}
+            </ol>
+          )}
+
+          {session.exchange && (
+            <div className="flex flex-col gap-0.5">
+              <p className="text-muted-foreground italic">
+                Ta question : {session.exchange.question}
+              </p>
+              {session.exchange.response && (
+                <p>{session.exchange.response.message}</p>
+              )}
+            </div>
+          )}
+
+          {session.loading && (
             <p className="text-muted-foreground">Le coach réfléchit…</p>
           )}
-          {state.status === "answer" && <p>{state.response.message}</p>}
-          {state.status === "error" && (
-            <p className="text-destructive">{state.message}</p>
-          )}
+          {session.error && <p className="text-destructive">{session.error}</p>}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={onHint} disabled={disabled}>
-            Un indice ?
+          <Button onClick={onHint} disabled={blocked || noMoreHints}>
+            {hintButtonLabel(session)}
           </Button>
           {blockedReason && (
             <span className="text-muted-foreground text-xs">
@@ -97,7 +121,7 @@ export function CoachPanel({
             type="submit"
             variant="outline"
             size="sm"
-            disabled={disabled || question.trim() === ""}
+            disabled={blocked || question.trim() === ""}
             className="self-end"
           >
             Demander
