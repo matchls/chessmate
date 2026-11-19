@@ -14,9 +14,11 @@ import {
   type SquareHandlerArgs,
 } from "react-chessboard";
 import { MoveList } from "@/components/chess/move-list";
+import { CoachPanel } from "@/components/coach/coach-panel";
 import { PromotionDialog } from "@/components/chess/promotion-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useCoach } from "@/hooks/use-coach";
 import { usePositionAnalysis } from "@/hooks/use-position-analysis";
 import { useStockfish } from "@/hooks/use-stockfish";
 import {
@@ -41,6 +43,12 @@ import {
   type BotLevelId,
 } from "@/lib/engine/levels";
 import { classifyMove, type MoveClass } from "@/lib/engine/evaluation";
+import { buildCoachRequest } from "@/lib/coach/client";
+import {
+  coachArrows,
+  coachSquareStyles,
+  mergeSquareStyles,
+} from "@/lib/coach/overlay";
 
 type Side = "white" | "black";
 type Mode = "bot" | "local";
@@ -101,6 +109,34 @@ export function GameBoard() {
     if (!before || !after) return undefined;
     return classifyMove(before.score, after.score, positions[index].turn);
   });
+
+  // Coach : à la demande seulement, sur la position affichée. Sa réponse disparaît au coup suivant.
+  const coach = useCoach(fen);
+  const currentAnalysis = analyses[moves.length];
+  const coachBlockedReason = isOver
+    ? "La partie est terminée."
+    : isBotTurn
+      ? "Attends le coup du bot."
+      : !currentAnalysis
+        ? "Analyse de la position…"
+        : null;
+
+  function askCoach(question?: string) {
+    if (coachBlockedReason) return;
+    const san = sanHistory.at(-1);
+    const moveClass = classifications.at(-1);
+    void coach.ask(
+      buildCoachRequest({
+        fen,
+        hintLevel: 1,
+        analysis: currentAnalysis,
+        lastMove: san
+          ? { san, ...(moveClass ? { moveClass } : {}) }
+          : undefined,
+        question,
+      }),
+    );
+  }
 
   // Quand c'est au bot de jouer : on demande un coup à Stockfish après un court délai.
   useEffect(() => {
@@ -174,6 +210,7 @@ export function GameBoard() {
     setSelected(null);
     setPendingPromotion(null);
     setFlipped(false);
+    coach.reset();
     if (next.side) setPlayerSide(next.side);
     if (next.mode) setMode(next.mode);
     void engineRef.current?.newGame();
@@ -193,6 +230,11 @@ export function GameBoard() {
     }
   }
 
+  const coachReply =
+    coach.state.status === "answer" ? coach.state.response : null;
+  const coachHighlights = coachSquareStyles(coachReply?.highlights ?? []);
+  const coachBoardArrows = coachArrows(coachReply?.arrows ?? []);
+
   return (
     <div className="flex w-full flex-col gap-6 lg:flex-row lg:items-start">
       <div className="mx-auto w-full max-w-[min(100%,600px)] flex-1">
@@ -203,7 +245,8 @@ export function GameBoard() {
             boardOrientation: orientation,
             lightSquareStyle: LIGHT_SQUARE,
             darkSquareStyle: DARK_SQUARE,
-            squareStyles,
+            squareStyles: mergeSquareStyles(squareStyles, coachHighlights),
+            arrows: coachBoardArrows,
             allowDrawingArrows: false,
             canDragPiece: ({ piece }) =>
               !isOver && !isBotTurn && piece.pieceType[0] === turn,
@@ -213,7 +256,7 @@ export function GameBoard() {
         />
       </div>
 
-      <div className="flex w-full flex-col gap-4 lg:w-72">
+      <div className="flex w-full flex-col gap-4 lg:w-80">
         <div role="status" aria-live="polite" className="flex flex-col gap-1">
           <p
             className={
@@ -226,6 +269,13 @@ export function GameBoard() {
             <p className="text-muted-foreground text-sm">Le bot réfléchit…</p>
           )}
         </div>
+
+        <CoachPanel
+          state={coach.state}
+          blockedReason={coachBlockedReason}
+          onHint={() => askCoach()}
+          onQuestion={(question) => askCoach(question)}
+        />
 
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => newGame()}>Nouvelle partie</Button>
