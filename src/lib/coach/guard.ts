@@ -34,6 +34,7 @@ export type GuardIssue =
   | "dropped-highlight"
   | "dropped-arrow"
   | "leak-arrow"
+  | "leak-highlight"
   | "leak-message";
 
 const MAX_HIGHLIGHTS = 4;
@@ -108,6 +109,33 @@ function arrowMakesSense(game: Chess, from: Square, to: Square): boolean {
   return false;
 }
 
+/**
+ * Cases surlignées qui donneraient le coup. Surligner la pièce à jouer ET sa case d'arrivée,
+ * c'est montrer le coup. Règles :
+ * - niveau 1 : ni la pièce à jouer, ni sa case d'arrivée ;
+ * - niveaux 2 et 3 : la pièce à jouer, ou la pièce à prendre si le coup est une prise,
+ *   mais jamais les deux ; jamais une case d'arrivée vide.
+ */
+export function leakingHighlights(
+  highlights: readonly Square[],
+  game: Chess,
+  best: MoveInput,
+  hintLevel: HintLevel,
+): Square[] {
+  const leaking: Square[] = [];
+  const showsPiece = highlights.includes(best.from);
+  const showsTarget = highlights.includes(best.to);
+  const isCapture = game.get(best.to) !== undefined;
+
+  if (hintLevel === 1) {
+    if (showsPiece) leaking.push(best.from);
+    if (showsTarget) leaking.push(best.to);
+    return leaking;
+  }
+  if (showsTarget && (!isCapture || showsPiece)) leaking.push(best.to);
+  return leaking;
+}
+
 export function guardReply(raw: string, context: GuardContext): GuardResult {
   const issues: GuardIssue[] = [];
   const fallback = (issue: GuardIssue): GuardResult => ({
@@ -140,6 +168,17 @@ export function guardReply(raw: string, context: GuardContext): GuardResult {
     if (isSquare(square) && !highlights.includes(square))
       highlights.push(square);
     else issues.push("dropped-highlight");
+  }
+  if (best) {
+    for (const square of leakingHighlights(
+      highlights,
+      game,
+      best,
+      context.hintLevel,
+    )) {
+      highlights.splice(highlights.indexOf(square), 1);
+      issues.push("leak-highlight");
+    }
   }
 
   const arrows: CoachArrow[] = [];

@@ -226,8 +226,8 @@ export const BENCH_POSITIONS: BenchPosition[] = [
     ],
   },
   {
-    id: "cavalier-attaque",
-    label: "Ton cavalier attaqué par un pion",
+    id: "pion-e5-gratuit",
+    label: "Pion adverse en e5 non défendu",
     fen: "r1bqkbnr/pppp1ppp/8/4p3/2B1n3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 4",
     analysis: {
       score: {
@@ -250,7 +250,7 @@ export const BENCH_POSITIONS: BenchPosition[] = [
       },
       {
         hintLevel: 1,
-        question: "Pourquoi mon cavalier est-il en danger ?",
+        question: "Est-ce que je peux gagner du matériel ?",
       },
     ],
   },

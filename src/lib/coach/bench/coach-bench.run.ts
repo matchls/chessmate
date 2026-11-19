@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { test } from "vitest";
 import { askCoach } from "@/lib/coach/coach";
-import { createProvider } from "@/lib/coach/provider";
+import { createProvider, ProviderError } from "@/lib/coach/provider";
 import { coachRequestSchema } from "@/lib/coach/schema";
 import { BENCH_POSITIONS } from "./positions";
 
@@ -25,8 +25,10 @@ const MODELS = (
   .split(",")
   .map((model) => model.trim())
   .filter(Boolean);
-// Offre gratuite : on espace les requêtes pour rester sous la limite par minute.
-const PAUSE_MS = Number(process.env.BENCH_PAUSE_MS ?? 2500);
+// Offre gratuite : on espace les requêtes pour rester sous la limite par minute, et on réessaie
+// une fois après une erreur 429 (limite atteinte).
+const PAUSE_MS = Number(process.env.BENCH_PAUSE_MS ?? 8000);
+const RETRY_AFTER_429_MS = 20_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const cell = (text: string) =>
@@ -44,6 +46,8 @@ test(
       let leaks = 0;
       let invalid = 0;
       let errors = 0;
+      let withQuestion = 0;
+      let answered = 0;
 
       for (const position of BENCH_POSITIONS) {
         for (const benchCase of position.cases) {
@@ -54,8 +58,17 @@ test(
           });
           const label = `${position.label} (niv. ${benchCase.hintLevel}${benchCase.question ? ", question" : ""})`;
           try {
-            const result = await askCoach(request, provider);
+            const ask = () => askCoach(request, provider);
+            const result = await ask().catch(async (error: unknown) => {
+              if (error instanceof ProviderError && error.status === 429) {
+                await sleep(RETRY_AFTER_429_MS);
+                return ask();
+              }
+              throw error;
+            });
             latencies.push(result.latencyMs);
+            answered += 1;
+            if (result.message.trim().endsWith("?")) withQuestion += 1;
             if (result.issues.some((issue) => issue.startsWith("leak")))
               leaks += 1;
             if (result.issues.some((issue) => issue.startsWith("invalid")))
@@ -94,6 +107,7 @@ test(
         `- Temps de réponse : médiane ${median} ms, 90 % sous ${p90} ms`,
         `- Coup révélé (bloqué par le garde-fou) : ${leaks}`,
         `- Réponses illisibles (remplacées) : ${invalid}`,
+        `- Messages qui finissent par une question : ${withQuestion} sur ${answered}`,
         `- Erreurs du fournisseur : ${errors}`,
         "",
         "Colonne « Note » à remplir à la main : exactitude échiquéenne et pédagogie, de 0 à 2 chacune.",

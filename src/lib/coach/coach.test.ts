@@ -69,12 +69,12 @@ describe("createProvider", () => {
       status: 200,
     });
 
-  it("utilise Groq et gpt-oss-20b par défaut, avec un effort de réflexion bas", async () => {
+  it("utilise Groq et gpt-oss-120b par défaut, avec un effort de réflexion bas", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse('{"message":"ok"}'));
     const provider = createProvider({ GROQ_API_KEY: "test" }, fetchMock);
     expect(provider).toMatchObject({
       name: "groq",
-      model: "openai/gpt-oss-20b",
+      model: "openai/gpt-oss-120b",
     });
 
     await expect(
@@ -84,7 +84,7 @@ describe("createProvider", () => {
     expect(url).toBe("https://api.groq.com/openai/v1/chat/completions");
     expect(init.headers.Authorization).toBe("Bearer test");
     expect(JSON.parse(init.body)).toMatchObject({
-      model: "openai/gpt-oss-20b",
+      model: "openai/gpt-oss-120b",
       reasoning_effort: "low",
       response_format: { type: "json_object" },
     });

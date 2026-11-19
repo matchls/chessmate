@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { bestMoveSpellings, guardReply, messageLeaksMove } from "./guard";
+import { Chess } from "chess.js";
+import {
+  bestMoveSpellings,
+  guardReply,
+  leakingHighlights,
+  messageLeaksMove,
+} from "./guard";
 
 // Fourchette de cavalier : le meilleur coup est Cb5-c7+ (Nc7+).
 const FORK_FEN = "r3k3/8/8/1N6/8/8/8/4K3 w - - 0 1";
@@ -142,5 +148,43 @@ describe("guardReply", () => {
       { fen: FORK_FEN, hintLevel: 1 },
     );
     expect(result.highlights).toHaveLength(4);
+  });
+});
+
+describe("leakingHighlights", () => {
+  const fork = new Chess(FORK_FEN);
+  // Dame adverse non défendue : le meilleur coup Ce3xd5 est une prise.
+  const capture = new Chess("4k3/8/8/3q4/8/4N3/8/4K3 w - - 0 1");
+  const takeQueen = { from: "e3", to: "d5" } as const;
+
+  it("niveau 1 : ni la pièce à jouer, ni sa case d'arrivée", () => {
+    expect(leakingHighlights(["b5", "c7", "e8"], fork, BEST, 1)).toEqual([
+      "b5",
+      "c7",
+    ]);
+  });
+
+  it("niveaux 2 et 3 : la pièce à jouer oui, une case d'arrivée vide jamais", () => {
+    expect(leakingHighlights(["b5"], fork, BEST, 2)).toEqual([]);
+    expect(leakingHighlights(["b5", "c7"], fork, BEST, 3)).toEqual(["c7"]);
+  });
+
+  it("niveaux 2 et 3 : la pièce à prendre oui, mais pas avec la pièce qui prend", () => {
+    expect(leakingHighlights(["d5"], capture, takeQueen, 2)).toEqual([]);
+    expect(leakingHighlights(["e3", "d5"], capture, takeQueen, 3)).toEqual([
+      "d5",
+    ]);
+  });
+
+  it("guardReply retire ces cases et le signale", () => {
+    const result = guardReply(
+      reply({
+        message: "Regarde autour de ton cavalier ?",
+        highlights: ["b5", "c7"],
+      }),
+      { fen: FORK_FEN, hintLevel: 1, bestMove: BEST },
+    );
+    expect(result.highlights).toEqual([]);
+    expect(result.issues).toEqual(["leak-highlight", "leak-highlight"]);
   });
 });

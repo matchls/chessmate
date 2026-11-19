@@ -26,7 +26,7 @@ export const PROVIDERS: Record<ProviderName, ProviderConfig> = {
   groq: {
     baseUrl: "https://api.groq.com/openai/v1",
     keyVariable: "GROQ_API_KEY",
-    defaultModel: "openai/gpt-oss-20b",
+    defaultModel: "openai/gpt-oss-120b",
     // Les modèles gpt-oss « réfléchissent » avant de répondre : on limite cet effort pour
     // garder un temps de réponse compatible avec une partie en direct.
     extraBody: { reasoning_effort: "low" },
