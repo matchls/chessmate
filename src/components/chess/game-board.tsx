@@ -16,6 +16,7 @@ import {
 import { MoveList } from "@/components/chess/move-list";
 import { CoachPanel } from "@/components/coach/coach-panel";
 import { PromotionDialog } from "@/components/chess/promotion-dialog";
+import { ReviewControls } from "@/components/chess/review-controls";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCoach } from "@/hooks/use-coach";
@@ -35,6 +36,16 @@ import {
   type MoveInput,
   type PromotionPiece,
 } from "@/lib/chess/game";
+import {
+  isReviewing,
+  keyToAction,
+  navigate,
+  reviewLabel,
+  shownCount,
+  viewAfterMove,
+  type ReviewAction,
+  type ReviewView,
+} from "@/lib/chess/review";
 import {
   BOT_LEVELS,
   BOT_MOVE_DELAY_MS,
@@ -88,6 +99,8 @@ export function GameBoard() {
   /** Camp du joueur : en mode bot, le bot joue l'autre camp. */
   const [playerSide, setPlayerSide] = useState<Side>("white");
   const [flipped, setFlipped] = useState(false);
+  /** Coup affiché pendant une revue (null : le direct). */
+  const [view, setView] = useState<ReviewView>(null);
 
   const game = useMemo(() => replay(moves), [moves]);
   const fen = game.fen();
@@ -97,7 +110,16 @@ export function GameBoard() {
   const isBotTurn =
     mode === "bot" && !isOver && turn !== sideToColor(playerSide);
   const sanHistory = game.history();
-  const lastMove = moves.at(-1);
+
+  // Revue : l'échiquier montre la position après `shown` coups, sans toucher à la partie.
+  const reviewing = isReviewing(view, moves.length);
+  const shown = shownCount(view, moves.length);
+  const displayed = useMemo(
+    () => (reviewing ? replay(moves.slice(0, shown)) : game),
+    [reviewing, moves, shown, game],
+  );
+  const lastMove = moves[shown - 1];
+  const canPlay = !isOver && !isBotTurn && !reviewing;
   const orientation = flipped ? opposite(playerSide) : playerSide;
 
   // Analyse de chaque position par un second Stockfish, puis classement de chaque coup en
@@ -114,13 +136,15 @@ export function GameBoard() {
   // Coach : à la demande seulement, sur la position affichée. Sa réponse disparaît au coup suivant.
   const coach = useCoach(fen);
   const currentAnalysis = analyses[moves.length];
-  const coachBlockedReason = isOver
-    ? "La partie est terminée."
-    : isBotTurn
-      ? "Attends le coup du bot."
-      : !currentAnalysis
-        ? "Analyse de la position…"
-        : null;
+  const coachBlockedReason = reviewing
+    ? "Reviens au direct pour demander un indice."
+    : isOver
+      ? "La partie est terminée."
+      : isBotTurn
+        ? "Attends le coup du bot."
+        : !currentAnalysis
+          ? "Analyse de la position…"
+          : null;
 
   /** Prépare la demande au coach pour la position affichée, au niveau voulu. */
   function coachRequest(hintLevel: HintLevel, question?: string) {
@@ -137,7 +161,7 @@ export function GameBoard() {
 
   // Quand c'est au bot de jouer : on demande un coup à Stockfish après un court délai.
   useEffect(() => {
-    if (!isBotTurn) return;
+    if (!isBotTurn || reviewing) return;
     let cancelled = false;
     const { options, limits } = getBotLevel(level);
 
@@ -156,7 +180,35 @@ export function GameBoard() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [isBotTurn, fen, level, engineRef]);
+  }, [isBotTurn, reviewing, fen, level, engineRef]);
+
+  function review(action: ReviewAction) {
+    setSelected(null);
+    setView((current) => navigate(current, moves.length, action));
+  }
+
+  // Flèches du clavier : ← → pour naviguer, Début / Fin. Pas pendant la saisie d'une question,
+  // ni pendant le choix d'une promotion.
+  const total = moves.length;
+  const promoting = pendingPromotion !== null;
+  useEffect(() => {
+    if (promoting) return;
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.closest("input, textarea, select, [contenteditable='true']")
+      ) {
+        return;
+      }
+      const action = keyToAction(event.key);
+      if (!action) return;
+      event.preventDefault();
+      setSelected(null);
+      setView((current) => navigate(current, total, action));
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [total, promoting]);
 
   function play(move: MoveInput): boolean {
     const result = tryMove(moves, move);
@@ -168,7 +220,7 @@ export function GameBoard() {
 
   /** Joue from → to, ou ouvre le choix de la pièce si c'est une promotion. */
   function attemptMove(from: Square, to: Square): boolean {
-    if (isOver || isBotTurn) return false;
+    if (!canPlay) return false;
     if (needsPromotion(game, from, to)) {
       setPendingPromotion({ from, to });
       setSelected(null);
@@ -186,7 +238,7 @@ export function GameBoard() {
   }
 
   function handleSquareClick({ square }: SquareHandlerArgs) {
-    if (isOver || isBotTurn) return;
+    if (!canPlay) return;
     const target = square as Square;
     if (selected && legalTargets(game, selected).includes(target)) {
       attemptMove(selected, target);
@@ -198,7 +250,10 @@ export function GameBoard() {
   }
 
   function handlePromotion(piece: PromotionPiece) {
-    if (pendingPromotion) play({ ...pendingPromotion, promotion: piece });
+    // Garde-fou : jamais de coup joué pendant une revue (fenêtre ouverte puis ← au clavier).
+    if (pendingPromotion && canPlay) {
+      play({ ...pendingPromotion, promotion: piece });
+    }
     setPendingPromotion(null);
   }
 
@@ -207,6 +262,7 @@ export function GameBoard() {
     setSelected(null);
     setPendingPromotion(null);
     setFlipped(false);
+    setView(null);
     coach.reset();
     if (next.side) setPlayerSide(next.side);
     if (next.mode) setMode(next.mode);
@@ -218,7 +274,7 @@ export function GameBoard() {
     squareStyles[lastMove.from] = LAST_MOVE;
     squareStyles[lastMove.to] = LAST_MOVE;
   }
-  const kingInCheck = checkedKingSquare(game);
+  const kingInCheck = checkedKingSquare(displayed);
   if (kingInCheck) squareStyles[kingInCheck] = CHECK;
   if (selected) {
     squareStyles[selected] = SELECTED;
@@ -227,28 +283,45 @@ export function GameBoard() {
     }
   }
 
-  const coachReply = coach.session.latest;
+  const coachReply = reviewing ? null : coach.session.latest;
   const coachHighlights = coachSquareStyles(coachReply?.highlights ?? []);
   const coachBoardArrows = coachArrows(coachReply?.arrows ?? []);
 
   return (
     <div className="flex w-full flex-col gap-6 lg:flex-row lg:items-start">
-      <div className="mx-auto w-full max-w-[min(100%,600px)] flex-1">
+      <div className="mx-auto flex w-full max-w-[min(100%,600px)] flex-1 flex-col gap-3">
         <Chessboard
           options={{
             id: "chessmate-board",
-            position: fen,
+            position: displayed.fen(),
             boardOrientation: orientation,
             lightSquareStyle: LIGHT_SQUARE,
             darkSquareStyle: DARK_SQUARE,
             squareStyles: mergeSquareStyles(squareStyles, coachHighlights),
             arrows: coachBoardArrows,
             allowDrawingArrows: false,
-            canDragPiece: ({ piece }) =>
-              !isOver && !isBotTurn && piece.pieceType[0] === turn,
+            canDragPiece: ({ piece }) => canPlay && piece.pieceType[0] === turn,
             onPieceDrop: handlePieceDrop,
             onSquareClick: handleSquareClick,
           }}
+        />
+
+        {reviewing && (
+          <div
+            role="status"
+            className="border-or bg-noyer-clair flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+          >
+            <span>{reviewLabel(sanHistory, shown)}</span>
+            <Button size="sm" onClick={() => review("last")}>
+              Retour au direct
+            </Button>
+          </div>
+        )}
+
+        <ReviewControls
+          shown={shown}
+          total={moves.length}
+          onNavigate={review}
         />
       </div>
 
@@ -336,6 +409,11 @@ export function GameBoard() {
             <MoveList
               sanHistory={sanHistory}
               classifications={classifications}
+              shown={shown}
+              onSelect={(index) => {
+                setSelected(null);
+                setView(viewAfterMove(index, moves.length));
+              }}
             />
           </CardContent>
         </Card>

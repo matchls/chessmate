@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ReviewDemo } from "./review-demo";
 
 /*
  * Planche du design system : affiche les vrais tokens et composants de l'appli.
@@ -296,6 +297,13 @@ export default function DesignSystemPage() {
           <p className="text-destructive">Erreur — bordeaux-300</p>
           <p className="text-or">Accent — or</p>
         </div>
+      </Section>
+
+      <Section
+        title="Revue des coups"
+        description="Liste des coups cliquable (symboles ?! ? ?? en tokens lisibles sur parchemin) et boutons de navigation, assez grands pour le doigt."
+      >
+        <ReviewDemo />
       </Section>
 
       <Section
