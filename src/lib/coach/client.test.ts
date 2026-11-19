@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { coachRequestSchema } from "@/lib/coach/schema";
-import { buildCoachRequest, requestCoach } from "./client";
+import { coachRequestSchema, explainRequestSchema } from "@/lib/coach/schema";
+import {
+  buildCoachRequest,
+  buildExplainRequest,
+  requestCoach,
+  requestExplain,
+} from "./client";
 
 const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const ANALYSIS = {
@@ -124,5 +129,41 @@ describe("requestCoach", () => {
       fetchImpl: fakeFetch(new DOMException("aborted", "AbortError")),
     });
     expect(outcome).toMatchObject({ ok: false, kind: "aborted" });
+  });
+});
+
+describe("explication d'un coup signalé (client)", () => {
+  const explainBody = buildExplainRequest({
+    step: "why",
+    fenBefore: START,
+    played: { from: "a2", to: "a3" },
+    moveClass: "inaccuracy",
+    before: ANALYSIS,
+    after: { ...ANALYSIS, bestMove: { from: "e7", to: "e5" } },
+  });
+
+  it("produit une demande acceptée par le schéma du serveur", () => {
+    expect(explainRequestSchema.safeParse(explainBody).success).toBe(true);
+    expect(explainBody.before.pv).toHaveLength(30);
+  });
+
+  it("vérifie la réponse : position des visuels obligatoire", async () => {
+    const reply = {
+      message: "Ce coup ne développe rien. Quelle pièce aurait pu sortir ?",
+      highlights: [],
+      arrows: [{ from: "e7", to: "e5" }],
+      step: "why",
+      board: "after",
+    };
+    expect(
+      await requestExplain(explainBody, { fetchImpl: fakeFetch(json(reply)) }),
+    ).toEqual({ ok: true, response: reply });
+    const withoutBoard: Partial<typeof reply> = { ...reply };
+    delete withoutBoard.board;
+    expect(
+      await requestExplain(explainBody, {
+        fetchImpl: fakeFetch(json(withoutBoard)),
+      }),
+    ).toMatchObject({ ok: false, kind: "invalid-response" });
   });
 });

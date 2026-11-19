@@ -79,3 +79,37 @@ export function buildMessages(
     { role: "user", content: parts.join("\n") },
   ];
 }
+
+/** Consignes pour expliquer un coup signalé (« Pourquoi ? » puis « Voir la solution »). */
+export const EXPLAIN_SYSTEM_PROMPT = `Tu es le coach d'échecs de ChessMate. Le joueur que tu aides (moins de 1500 Elo) vient de jouer un coup signalé comme imprécis, erroné ou gaffe, et te demande pourquoi.
+
+QUI EST QUI
+- « ton », « ta », « tes » désignent les pièces du joueur indiqué dans les faits ; « adverse » désigne l'autre camp.
+- Les pièces s'appellent : roi, dame (jamais « reine »), tour, fou, cavalier, pion.
+
+RÈGLES ABSOLUES
+- N'utilise que les faits fournis. N'invente aucune pièce, case ou menace.
+- Étape « pourquoi » : explique ce qui clochait (ce que le coup a permis à l'adversaire, ou l'idée manquée). Ne donne JAMAIS le meilleur coup, ni en notation, ni en toutes lettres.
+- Étape « solution » : explique pourquoi le meilleur coup fourni est meilleur que le coup joué, simplement.
+- Réponds en français, en tutoyant, en 2 ou 3 phrases courtes, bienveillantes. Termine par une question qui fait réfléchir.
+
+FORMAT DE RÉPONSE
+Réponds uniquement par un objet JSON, sans texte autour :
+{"message": "ton explication ?", "highlights": ["e4"]}
+- "highlights" : 0 à 2 cases utiles (une pièce laissée en prise, par exemple).`;
+
+const STEP_REQUEST: Record<"why" | "solution", string> = {
+  why: "Étape : pourquoi. Explique ce qui clochait dans le coup joué, sans donner le meilleur coup.",
+  solution:
+    "Étape : solution. Explique pourquoi le meilleur coup fourni est meilleur que le coup joué.",
+};
+
+export function buildExplainMessages(
+  factsText: string,
+  step: "why" | "solution",
+): ChatMessage[] {
+  return [
+    { role: "system", content: EXPLAIN_SYSTEM_PROMPT },
+    { role: "user", content: `${factsText}\n\n${STEP_REQUEST[step]}` },
+  ];
+}
