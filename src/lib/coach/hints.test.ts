@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { PositionAnalysis } from "@/lib/engine/evaluation";
 import { extractFacts } from "./facts";
-import { templateHint } from "./hints";
+import { messageLeaksMove } from "./guard";
+import { templateHint, templateIdea } from "./hints";
 
 const first = <T>(options: readonly T[]) => options[0];
 const withBest = (
@@ -50,10 +51,11 @@ describe("templateHint niveau 1", () => {
     expect(result.message).toContain("la mettre à l'abri");
   });
 
-  it("mat en 1 : on montre le roi adverse, jamais la pièce ni la case du mat", () => {
+  it("mat en 1 : texte seul, jamais la pièce ni la case du mat", () => {
     const fen = "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1";
     const result = hint(fen, 1, { from: "a1", to: "a8" });
-    expect(result.highlights).toEqual(["g8"]);
+    expect(result.message).toMatch(/roi adverse/);
+    expect(result.highlights).toEqual([]);
     expect(result.message).not.toMatch(/\ba1\b|\ba8\b|\btour\b/);
   });
 
@@ -64,21 +66,15 @@ describe("templateHint niveau 1", () => {
     expect(result.highlights).toEqual([]);
   });
 
-  it("coup calme : on nomme la zone et on surligne des cases voisines, jamais la destination", () => {
+  it("coup calme : on nomme la zone en texte seul, sans aucune case surlignée", () => {
     const start = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-    const result = hint(start, 1, { from: "e2", to: "e4" });
-    expect(result.message).toContain("du côté du centre");
-    expect(result.highlights).not.toContain("e4");
-    expect(result.highlights).not.toContain("e2");
-    expect(result.highlights.length).toBeGreaterThan(0);
-  });
-
-  it("coup calme en bordure de zone : les cases surlignées restent dans la zone annoncée", () => {
-    const start = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-    const result = hint(start, 1, { from: "g1", to: "f3" });
-    expect(result.message).toContain("aile roi");
-    expect(result.highlights.length).toBeGreaterThan(0);
-    for (const square of result.highlights) expect("fgh").toContain(square[0]);
+    const centre = hint(start, 1, { from: "e2", to: "e4" });
+    expect(centre.message).toContain("du côté du centre");
+    expect(centre.highlights).toEqual([]);
+    expect(centre.arrows).toEqual([]);
+    const flank = hint(start, 1, { from: "b1", to: "c3" });
+    expect(flank.message).toContain("aile dame");
+    expect(flank.highlights).toEqual([]);
   });
 
   it("sans analyse : indice général", () => {
@@ -103,5 +99,72 @@ describe("templateHint niveau 2", () => {
     expect(hint(fen, 2, { from: "a1", to: "a8" }).message).toContain(
       "Où serait-elle",
     );
+  });
+});
+
+describe("templateIdea (niveau 3)", () => {
+  function idea(
+    fen: string,
+    bestMove: NonNullable<PositionAnalysis["bestMove"]>,
+  ) {
+    const facts = extractFacts({ fen, analysis: withBest(bestMove) });
+    const result = templateIdea(facts, first);
+    if (result)
+      expect(messageLeaksMove(result.message, fen, bestMove)).toBe(false);
+    return result;
+  }
+
+  it("mat en 1 : la pièce et l'idée du mat, jamais la case", () => {
+    const result = idea("6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1", {
+      from: "a1",
+      to: "a8",
+    });
+    expect(result?.message).toContain("Ta tour en a1 peut donner échec et mat");
+    expect(result?.highlights).toEqual(["a1"]);
+    expect(result?.message).not.toContain("a8");
+  });
+
+  it("fourchette : la pièce et l'idée d'attaquer deux cibles", () => {
+    const result = idea("r3k3/8/8/1N6/8/8/8/4K3 w - - 0 1", {
+      from: "b5",
+      to: "c7",
+    });
+    expect(result?.message).toContain(
+      "Ton cavalier en b5 peut attaquer deux pièces",
+    );
+    expect(result?.highlights).toEqual(["b5"]);
+    expect(result?.message).not.toContain("c7");
+  });
+
+  it("prise gratuite : la pièce et l'idée de gagner du matériel, sans nommer la cible", () => {
+    const result = idea("4k3/8/8/3q4/8/4N3/8/4K3 w - - 0 1", {
+      from: "e3",
+      to: "d5",
+    });
+    expect(result?.message).toContain("gagner du matériel");
+    expect(result?.message).not.toMatch(/d5|dame/);
+  });
+
+  it("pièce à sauver : l'idée de la mettre à l'abri en créant une menace", () => {
+    const result = idea("4k3/8/8/8/4p3/5N2/8/4K3 w - - 0 1", {
+      from: "f3",
+      to: "d4",
+    });
+    expect(result?.message).toContain("Ton cavalier en f3 est attaqué");
+    expect(result?.message).toContain("mets-le à l'abri");
+  });
+
+  it("échec sans autre thème : l'idée de l'échec qui force la réponse", () => {
+    const result = idea("4k3/8/8/8/8/8/8/R3K3 w - - 0 1", {
+      from: "a1",
+      to: "a8",
+    });
+    expect(result?.message).toContain("échec");
+    expect(result?.message).not.toContain("mat");
+  });
+
+  it("aucun thème reconnu : null, le modèle prendra le relais", () => {
+    const start = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    expect(idea(start, { from: "e2", to: "e4" })).toBeNull();
   });
 });
