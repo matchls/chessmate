@@ -18,6 +18,14 @@ const analysis = {
   pv: ["b5c7", "e8d8", "c7a8"],
   depth: 14,
 };
+/** Position sans thème reconnu : au niveau 3, c'est le modèle qui répond. */
+const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+const calmAnalysis = {
+  score: { type: "cp" as const, value: 30 },
+  bestMove: { from: "e2" as const, to: "e4" as const },
+  pv: ["e2e4"],
+  depth: 14,
+};
 
 describe("coachRequestSchema", () => {
   it("accepte une demande complète et met le niveau 1 par défaut", () => {
@@ -172,29 +180,43 @@ describe("askCoach", () => {
     expect(getProvider).not.toHaveBeenCalled();
   });
 
-  it("niveau 3 : faits (sans la destination) → modèle → garde-fou", async () => {
+  it("niveau 3 avec thème reconnu (fourchette) : gabarit, sans appel au modèle", async () => {
+    const getProvider = vi.fn(() => fakeProvider("{}"));
+    const result = await askCoach(
+      coachRequestSchema.parse({ fen: FORK_FEN, analysis, hintLevel: 3 }),
+      getProvider,
+    );
+    expect(result).toMatchObject({ source: "template", hintLevel: 3 });
+    expect(result.message).toMatch(/deux (pièces|cibles)/);
+    expect(result.message).not.toMatch(/c7/i);
+    expect(getProvider).not.toHaveBeenCalled();
+  });
+
+  it("niveau 3 sans thème reconnu : faits (sans la destination) → modèle → garde-fou", async () => {
     const provider = fakeProvider(
       JSON.stringify({
-        message:
-          "Cherche un coup qui attaque deux pièces à la fois. Lesquelles ?",
-        highlights: ["e8", "a8"],
+        message: "Quel pion central peut prendre de l'espace ?",
+        highlights: ["e2"],
       }),
     );
     const result = await askCoach(
-      coachRequestSchema.parse({ fen: FORK_FEN, analysis, hintLevel: 3 }),
+      coachRequestSchema.parse({
+        fen: START_FEN,
+        analysis: calmAnalysis,
+        hintLevel: 3,
+      }),
       () => provider,
     );
     expect(result).toMatchObject({
       source: "model",
-      highlights: ["e8", "a8"],
+      highlights: ["e2"],
       hintLevel: 3,
       issues: [],
     });
     const [messages] = (provider.complete as ReturnType<typeof vi.fn>).mock
       .calls[0];
-    expect(messages[1].content).toContain("fourchette");
-    expect(messages[1].content).toContain("ton cavalier en b5");
-    expect(messages[1].content).not.toContain("c7");
+    expect(messages[1].content).toContain("ton pion en e2");
+    expect(messages[1].content).not.toMatch(/\be4\b/);
   });
 
   it("question du joueur au niveau 1 : le modèle ne reçoit pas le meilleur coup", async () => {
@@ -217,10 +239,14 @@ describe("askCoach", () => {
 
   it("ne laisse jamais passer le coup, même si le modèle le donne", async () => {
     const result = await askCoach(
-      coachRequestSchema.parse({ fen: FORK_FEN, analysis, hintLevel: 3 }),
-      () => fakeProvider(JSON.stringify({ message: "Nc7+ gagne la tour." })),
+      coachRequestSchema.parse({
+        fen: START_FEN,
+        analysis: calmAnalysis,
+        hintLevel: 3,
+      }),
+      () => fakeProvider(JSON.stringify({ message: "Joue e4, c'est solide." })),
     );
     expect(result.issues).toContain("leak-message");
-    expect(result.message).not.toMatch(/c7/i);
+    expect(result.message).not.toMatch(/e4/i);
   });
 });

@@ -5,10 +5,14 @@ import { PIECE_VALUE, pieceRef, pronoun } from "@/lib/coach/french";
 import type { CoachArrow, HintLevel } from "@/lib/coach/schema";
 
 /**
- * Indices des niveaux 1 et 2, écrits par le code à partir des faits (des « gabarits »).
- * Toujours justes, instantanés, gratuits, et incapables de révéler le coup : ils ne
- * connaissent que la zone (niveau 1) ou la pièce (niveau 2), jamais la destination.
- * Le niveau 3 et les questions du joueur sont confiés au modèle de langage.
+ * Indices écrits par le code à partir des faits (des « gabarits »). Toujours justes,
+ * instantanés, gratuits, et incapables de révéler le coup : ils ne citent jamais la
+ * destination du meilleur coup.
+ * - Niveau 1 : où regarder, le plus évasif possible (texte seul, sauf pour ce qui te
+ *   concerne directement : ton roi en échec, ta pièce en prise).
+ * - Niveau 2 : la pièce qui a le bon coup.
+ * - Niveau 3 : l'idée, quand le code reconnaît le thème (mat, fourchette, prise, pièce à
+ *   sauver, échec) ; sinon, le modèle de langage prend le relais.
  */
 
 export type TemplateHint = {
@@ -22,31 +26,11 @@ type Pick = <T>(options: readonly T[]) => T;
 const randomPick: Pick = (options) =>
   options[Math.floor(Math.random() * options.length)];
 
-const opponentOf = (color: Color): Color => (color === "w" ? "b" : "w");
-
 function kingSquare(game: Chess, color: Color): Square | undefined {
   for (const cell of game.board().flat()) {
     if (cell?.type === "k" && cell.color === color) return cell.square;
   }
   return undefined;
-}
-
-/** Cases voisines d'une case (pour surligner une zone sans montrer une case précise). */
-function neighbours(square: Square): Square[] {
-  const file = square.charCodeAt(0);
-  const rank = Number(square[1]);
-  const result: Square[] = [];
-  for (const df of [-1, 0, 1]) {
-    for (const dr of [-1, 0, 1]) {
-      if (df === 0 && dr === 0) continue;
-      const f = file + df;
-      const r = rank + dr;
-      if (f >= 97 && f <= 104 && r >= 1 && r <= 8) {
-        result.push(`${String.fromCharCode(f)}${r}` as Square);
-      }
-    }
-  }
-  return result;
 }
 
 /** « de le fou » → « du fou », « de les » → « des ». */
@@ -86,16 +70,16 @@ const GENERIC: Record<1 | 2, readonly string[]> = {
 /**
  * Niveau 1 — « où regarder ». Ordre de priorité :
  * 1. ton roi est en échec ;
- * 2. tu as un mat en un coup : on montre le roi adverse ;
+ * 2. tu as un mat en un coup (texte seul) ;
  * 3. une de tes pièces est en prise ;
  * 4. une pièce adverse est à prendre gratuitement ;
- * 5. sinon, la zone du meilleur coup (cases voisines de la destination, jamais la destination).
+ * 5. sinon, la zone du meilleur coup, en texte seul : des cases surlignées ressemblaient à
+ *    des cases où aller (décision de Mat, issue #9).
  * Les simples menaces d'échec adverses ne sont pas signalées ici : trop fréquentes, souvent
  * sans danger réel (le modèle les reçoit dans les faits pour le niveau 3).
  */
 function levelOne(facts: PositionFacts, game: Chess, pick: Pick): TemplateHint {
   const me = facts.turn;
-  const enemy = opponentOf(me);
   const best = facts.secret.bestMove;
 
   if (facts.inCheck) {
@@ -111,13 +95,12 @@ function levelOne(facts: PositionFacts, game: Chess, pick: Pick): TemplateHint {
   }
 
   if (best && facts.secret.themes.includes("mate-in-1")) {
-    const enemyKing = kingSquare(game, enemy);
     return {
       message: pick([
         "Le roi adverse est peut-être plus vulnérable qu'il n'y paraît. Toutes les cases autour de lui sont-elles bien protégées ?",
         "Regarde le roi adverse : a-t-il vraiment des cases de fuite ?",
       ]),
-      highlights: enemyKing ? [enemyKing] : [],
+      highlights: [],
       arrows: [],
     };
   }
@@ -158,20 +141,12 @@ function levelOne(facts: PositionFacts, game: Chess, pick: Pick): TemplateHint {
   }
 
   if (best) {
-    const zone = neighbours(best.to)
-      .filter(
-        (square) =>
-          square !== best.from &&
-          !game.get(square) &&
-          zoneOf(square) === zoneOf(best.to),
-      )
-      .slice(0, 2);
     return {
       message: pick([
         `Regarde du côté ${of(zoneOf(best.to))}. Laquelle de tes pièces pourrait y jouer un rôle ?`,
         `Il se passe quelque chose vers ${zoneOf(best.to)}. Qu'est-ce qui pourrait y changer ?`,
       ]),
-      highlights: zone,
+      highlights: [],
       arrows: [],
     };
   }
@@ -197,6 +172,80 @@ function levelTwo(facts: PositionFacts, pick: Pick): TemplateHint {
   };
 }
 
+const capitalize = (text: string) => text[0].toUpperCase() + text.slice(1);
+
+/**
+ * Niveau 3 — « quelle idée ». La pièce est déjà connue (niveau 2) ; on ajoute le thème,
+ * jamais la case d'arrivée. Renvoie null si aucun thème n'est reconnu : le modèle prend
+ * alors le relais.
+ */
+function levelThree(facts: PositionFacts, pick: Pick): TemplateHint | null {
+  const me = facts.turn;
+  const best = facts.secret.bestMove;
+  if (!best) return null;
+
+  const ref = pieceRef(best.piece, me, best.from, me);
+  const Ref = capitalize(ref);
+  const it = pronoun(best.piece);
+  const { themes } = facts.secret;
+  const piece = { highlights: [best.from], arrows: [] };
+
+  if (themes.includes("mate-in-1")) {
+    return {
+      message: pick([
+        `${Ref} peut donner échec et mat. Quelle case laisserait le roi adverse sans aucune issue ?`,
+        `C'est le moment de conclure : ${ref} peut mater. Quelles cases de fuite reste-t-il au roi adverse ?`,
+      ]),
+      ...piece,
+    };
+  }
+
+  if (themes.includes("fork")) {
+    return {
+      message: pick([
+        `${Ref} peut attaquer deux pièces adverses en même temps. Lesquelles, et depuis quelle case ?`,
+        `Pense à une fourchette : ${ref} peut viser deux cibles d'un coup. Lesquelles ?`,
+      ]),
+      ...piece,
+    };
+  }
+
+  if (themes.includes("free-capture")) {
+    return {
+      message: pick([
+        `${Ref} peut gagner du matériel : une pièce adverse à sa portée n'est pas assez défendue. Laquelle ?`,
+        `Compte les défenseurs autour de ${ref} : une pièce adverse est à prendre. Laquelle ?`,
+      ]),
+      ...piece,
+    };
+  }
+
+  const endangered = facts.dangers.hanging.find(
+    (hanging) => hanging.square === best.from,
+  );
+  if (endangered) {
+    return {
+      message: pick([
+        `${Ref} est attaqué${it === "elle" ? "e" : ""} : mets-${it === "elle" ? "la" : "le"} à l'abri, si possible en créant une menace au passage. Quelle case ferait les deux ?`,
+        `Sauve ${ref}, mais cherche la case où ${it} sera à la fois en sécurité et utile. Laquelle ?`,
+      ]),
+      ...piece,
+    };
+  }
+
+  if (best.isCheck) {
+    return {
+      message: pick([
+        `${Ref} peut donner un échec qui gêne l'adversaire. Qu'est-ce que tu gagnes juste après ?`,
+        `Un échec avec ${ref} forcerait la réponse adverse. Qu'est-ce que ça te permettrait ensuite ?`,
+      ]),
+      ...piece,
+    };
+  }
+
+  return null;
+}
+
 /** Indice écrit par le code pour les niveaux 1 et 2. */
 export function templateHint(
   fen: string,
@@ -206,4 +255,12 @@ export function templateHint(
 ): TemplateHint {
   const game = new Chess(fen);
   return hintLevel === 1 ? levelOne(facts, game, pick) : levelTwo(facts, pick);
+}
+
+/** Indice de niveau 3 écrit par le code, ou null si le thème n'est pas reconnu. */
+export function templateIdea(
+  facts: PositionFacts,
+  pick: Pick = randomPick,
+): TemplateHint | null {
+  return levelThree(facts, pick);
 }
