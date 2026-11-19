@@ -127,7 +127,7 @@ function SwatchTile({ swatch }: { swatch: Swatch }) {
   return (
     <div className="flex flex-col gap-1.5">
       <div
-        className={`${swatch.className} shadow-carte h-14 rounded-md ring-1 ring-black/10`}
+        className={`${swatch.className} shadow-carte h-14 rounded-md ring-1 ring-encre/10`}
       />
       <div className="flex flex-col">
         <code className="text-xs">{swatch.token}</code>
