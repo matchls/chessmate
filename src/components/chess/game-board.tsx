@@ -187,9 +187,12 @@ export function GameBoard() {
     setView((current) => navigate(current, moves.length, action));
   }
 
-  // Flèches du clavier : ← → pour naviguer, Début / Fin. Pas pendant la saisie d'une question.
+  // Flèches du clavier : ← → pour naviguer, Début / Fin. Pas pendant la saisie d'une question,
+  // ni pendant le choix d'une promotion.
   const total = moves.length;
+  const promoting = pendingPromotion !== null;
   useEffect(() => {
+    if (promoting) return;
     function onKeyDown(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
       if (
@@ -205,7 +208,7 @@ export function GameBoard() {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [total]);
+  }, [total, promoting]);
 
   function play(move: MoveInput): boolean {
     const result = tryMove(moves, move);
@@ -247,7 +250,10 @@ export function GameBoard() {
   }
 
   function handlePromotion(piece: PromotionPiece) {
-    if (pendingPromotion) play({ ...pendingPromotion, promotion: piece });
+    // Garde-fou : jamais de coup joué pendant une revue (fenêtre ouverte puis ← au clavier).
+    if (pendingPromotion && canPlay) {
+      play({ ...pendingPromotion, promotion: piece });
+    }
     setPendingPromotion(null);
   }
 
