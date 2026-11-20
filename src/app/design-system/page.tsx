@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { NewGameDemo } from "./new-game-demo";
+import { ResignDemo } from "./resign-demo";
 import { ReviewDemo } from "./review-demo";
 import { SecondChanceDemo } from "./second-chance-demo";
 
@@ -306,6 +307,13 @@ export default function DesignSystemPage() {
         description="Fenêtre de réglages (adversaire, niveau, couleur) ouverte avant chaque partie ; pendant la partie, un résumé en lecture seule."
       >
         <NewGameDemo />
+      </Section>
+
+      <Section
+        title="Abandon"
+        description="Bouton « Abandonner » visible pendant une partie en cours, avec confirmation ; le résultat remplace le trait."
+      >
+        <ResignDemo />
       </Section>
 
       <Section
