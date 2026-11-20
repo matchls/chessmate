@@ -17,6 +17,7 @@ import { MoveList } from "@/components/chess/move-list";
 import { CoachPanel } from "@/components/coach/coach-panel";
 import { NewGameDialog } from "@/components/chess/new-game-dialog";
 import { PromotionDialog } from "@/components/chess/promotion-dialog";
+import { SecondChanceOffer } from "@/components/chess/second-chance-offer";
 import { ReviewControls } from "@/components/chess/review-controls";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,6 +47,14 @@ import {
   type SettingsChoice,
   type Side,
 } from "@/lib/chess/game-settings";
+import {
+  ANALYSIS_WAIT_MS,
+  botGate,
+  chancesFor,
+  chancesLabel,
+  withoutLastMove,
+  type BotGate,
+} from "@/lib/chess/second-chance";
 import {
   isReviewing,
   keyToAction,
@@ -116,6 +125,11 @@ export function GameBoard() {
   const [flipped, setFlipped] = useState(false);
   /** Coup affiché pendant une revue (null : le direct). */
   const [view, setView] = useState<ReviewView>(null);
+  /** Secondes chances utilisées, et coup pour lequel le joueur a choisi « Continuer ». */
+  const [chancesUsed, setChancesUsed] = useState(0);
+  const [settledAt, setSettledAt] = useState<number | null>(null);
+  /** Partie « avec aide » : au moins une seconde chance a servi (gardé avec la partie). */
+  const [assisted, setAssisted] = useState(false);
 
   const game = useMemo(() => replay(moves), [moves]);
   const fen = game.fen();
@@ -147,6 +161,41 @@ export function GameBoard() {
     if (!before || !after) return undefined;
     return classifyMove(before.score, after.score, positions[index].turn);
   });
+
+  // Seconde chance : après une erreur ou une gaffe du joueur, le bot attend sa décision.
+  const chancesTotal = chancesFor(settings);
+  const chancesLeft = Math.max(chancesTotal - chancesUsed, 0);
+  const lastMoveClass = classifications[moves.length - 1];
+  const gate: BotGate = isBotTurn
+    ? botGate({
+        settings,
+        used: chancesUsed,
+        movesCount: moves.length,
+        settledAt,
+        lastMoveClass,
+      })
+    : "play";
+  const offer =
+    gate === "wait-decision" &&
+    (lastMoveClass === "mistake" || lastMoveClass === "blunder")
+      ? lastMoveClass
+      : null;
+
+  function retryMove() {
+    setMoves((current) => withoutLastMove(current));
+    setChancesUsed((used) => used + 1);
+    setAssisted(true);
+    setSelected(null);
+    setView(null);
+  }
+
+  // Analyse trop lente (ou en panne) : le bot n'attend pas indéfiniment.
+  useEffect(() => {
+    if (gate !== "wait-analysis") return;
+    const count = moves.length;
+    const timer = setTimeout(() => setSettledAt(count), ANALYSIS_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [gate, moves.length]);
 
   // Coach : à la demande seulement, sur la position affichée. Sa réponse disparaît au coup suivant.
   const coach = useCoach(fen);
@@ -195,11 +244,13 @@ export function GameBoard() {
     ? "Reviens au direct pour demander un indice."
     : isOver
       ? "La partie est terminée."
-      : isBotTurn
-        ? "Attends le coup du bot."
-        : !currentAnalysis
-          ? "Analyse de la position…"
-          : null;
+      : offer
+        ? "Décide d'abord : rejouer ou continuer."
+        : isBotTurn
+          ? "Attends le coup du bot."
+          : !currentAnalysis
+            ? "Analyse de la position…"
+            : null;
 
   /** Prépare la demande au coach pour la position affichée, au niveau voulu. */
   function coachRequest(hintLevel: HintLevel, question?: string) {
@@ -216,7 +267,7 @@ export function GameBoard() {
 
   // Quand c'est au bot de jouer : on demande un coup à Stockfish après un court délai.
   useEffect(() => {
-    if (!isBotTurn || reviewing) return;
+    if (!isBotTurn || reviewing || gate !== "play") return;
     let cancelled = false;
     if (settings.level === null) return;
     const { options, limits } = getBotLevel(settings.level);
@@ -236,7 +287,7 @@ export function GameBoard() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [isBotTurn, reviewing, fen, settings.level, engineRef]);
+  }, [isBotTurn, reviewing, gate, fen, settings.level, engineRef]);
 
   function review(action: ReviewAction) {
     setSelected(null);
@@ -335,6 +386,9 @@ export function GameBoard() {
     setView(null);
     coach.reset();
     explain.reset();
+    setChancesUsed(0);
+    setSettledAt(null);
+    setAssisted(false);
     void engineRef.current?.newGame();
   }
 
@@ -413,6 +467,16 @@ export function GameBoard() {
           )}
         </div>
 
+        {offer && (
+          <SecondChanceOffer
+            moveClass={offer}
+            remaining={chancesLeft}
+            total={chancesTotal}
+            onRetry={retryMove}
+            onContinue={() => setSettledAt(moves.length)}
+          />
+        )}
+
         <CoachPanel
           session={coach.session}
           explain={
@@ -427,6 +491,8 @@ export function GameBoard() {
                   explanation,
                   onWhy: () => askExplanation("why"),
                   onSolution: () => askExplanation("solution"),
+                  // Pendant une seconde chance, pas de solution : le joueur cherche lui-même.
+                  solutionAllowed: !offer,
                 }
               : null
           }
@@ -448,6 +514,8 @@ export function GameBoard() {
 
         <p className="text-muted-foreground text-sm">
           {settingsSummary(settings)}
+          {chancesTotal > 0 && ` · ${chancesLabel(chancesLeft, chancesTotal)}`}
+          {assisted && " · Partie avec aide"}
         </p>
 
         <Card size="sm">
