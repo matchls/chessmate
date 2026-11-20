@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { NewGameDemo } from "./new-game-demo";
 import { ReviewDemo } from "./review-demo";
 
 /*
@@ -297,6 +298,13 @@ export default function DesignSystemPage() {
           <p className="text-destructive">Erreur — bordeaux-300</p>
           <p className="text-or">Accent — or</p>
         </div>
+      </Section>
+
+      <Section
+        title="Nouvelle partie"
+        description="Fenêtre de réglages (adversaire, niveau, couleur) ouverte avant chaque partie ; pendant la partie, un résumé en lecture seule."
+      >
+        <NewGameDemo />
       </Section>
 
       <Section

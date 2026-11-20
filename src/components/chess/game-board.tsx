@@ -7,7 +7,6 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type ReactNode,
 } from "react";
 import {
   Chessboard,
@@ -16,6 +15,7 @@ import {
 } from "react-chessboard";
 import { MoveList } from "@/components/chess/move-list";
 import { CoachPanel } from "@/components/coach/coach-panel";
+import { NewGameDialog } from "@/components/chess/new-game-dialog";
 import { PromotionDialog } from "@/components/chess/promotion-dialog";
 import { ReviewControls } from "@/components/chess/review-controls";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,14 @@ import {
   type PromotionPiece,
 } from "@/lib/chess/game";
 import {
+  DEFAULT_CHOICE,
+  resolveSettings,
+  settingsSummary,
+  type GameSettings,
+  type SettingsChoice,
+  type Side,
+} from "@/lib/chess/game-settings";
+import {
   isReviewing,
   keyToAction,
   navigate,
@@ -48,13 +56,7 @@ import {
   type ReviewAction,
   type ReviewView,
 } from "@/lib/chess/review";
-import {
-  BOT_LEVELS,
-  BOT_MOVE_DELAY_MS,
-  DEFAULT_BOT_LEVEL,
-  getBotLevel,
-  type BotLevelId,
-} from "@/lib/engine/levels";
+import { BOT_MOVE_DELAY_MS, getBotLevel } from "@/lib/engine/levels";
 import { classifyMove, type MoveClass } from "@/lib/engine/evaluation";
 import { buildCoachRequest, buildExplainRequest } from "@/lib/coach/client";
 import {
@@ -70,9 +72,6 @@ import {
   coachSquareStyles,
   mergeSquareStyles,
 } from "@/lib/coach/overlay";
-
-type Side = "white" | "black";
-type Mode = "bot" | "local";
 
 const LIGHT_SQUARE: CSSProperties = { backgroundColor: "#f0d9b5" };
 const DARK_SQUARE: CSSProperties = { backgroundColor: "#b58863" };
@@ -103,10 +102,17 @@ export function GameBoard() {
     from: Square;
     to: Square;
   } | null>(null);
-  const [mode, setMode] = useState<Mode>("bot");
-  const [level, setLevel] = useState<BotLevelId>(DEFAULT_BOT_LEVEL);
+  /** Réglages de la partie en cours : figés jusqu'à la prochaine « Nouvelle partie ». */
+  const [settings, setSettings] = useState<GameSettings>(() =>
+    resolveSettings(DEFAULT_CHOICE),
+  );
+  /** Dernier choix fait dans la fenêtre (garde « au hasard » pour la partie suivante). */
+  const [lastChoice, setLastChoice] = useState<SettingsChoice>(DEFAULT_CHOICE);
+  /** La fenêtre s'ouvre à l'arrivée sur la page : on choisit avant de jouer. */
+  const [settingsOpen, setSettingsOpen] = useState(true);
+  const { mode } = settings;
   /** Camp du joueur : en mode bot, le bot joue l'autre camp. */
-  const [playerSide, setPlayerSide] = useState<Side>("white");
+  const playerSide: Side = settings.side;
   const [flipped, setFlipped] = useState(false);
   /** Coup affiché pendant une revue (null : le direct). */
   const [view, setView] = useState<ReviewView>(null);
@@ -212,7 +218,8 @@ export function GameBoard() {
   useEffect(() => {
     if (!isBotTurn || reviewing) return;
     let cancelled = false;
-    const { options, limits } = getBotLevel(level);
+    if (settings.level === null) return;
+    const { options, limits } = getBotLevel(settings.level);
 
     const timer = setTimeout(async () => {
       const engine = engineRef.current;
@@ -229,7 +236,7 @@ export function GameBoard() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [isBotTurn, reviewing, fen, level, engineRef]);
+  }, [isBotTurn, reviewing, fen, settings.level, engineRef]);
 
   function review(action: ReviewAction) {
     setSelected(null);
@@ -313,7 +320,14 @@ export function GameBoard() {
     setPendingPromotion(null);
   }
 
-  function newGame(next: { side?: Side; mode?: Mode } = {}) {
+  function startGame(choice: SettingsChoice) {
+    setLastChoice(choice);
+    setSettings(resolveSettings(choice));
+    setSettingsOpen(false);
+    resetBoard();
+  }
+
+  function resetBoard() {
     setMoves([]);
     setSelected(null);
     setPendingPromotion(null);
@@ -321,8 +335,6 @@ export function GameBoard() {
     setView(null);
     coach.reset();
     explain.reset();
-    if (next.side) setPlayerSide(next.side);
-    if (next.mode) setMode(next.mode);
     void engineRef.current?.newGame();
   }
 
@@ -428,55 +440,15 @@ export function GameBoard() {
         />
 
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => newGame()}>Nouvelle partie</Button>
+          <Button onClick={() => setSettingsOpen(true)}>Nouvelle partie</Button>
           <Button variant="outline" onClick={() => setFlipped(!flipped)}>
             Retourner l&apos;échiquier
           </Button>
         </div>
 
-        <ToggleRow label="Adversaire :">
-          <ToggleButton
-            pressed={mode === "bot"}
-            onClick={() => newGame({ mode: "bot" })}
-          >
-            Bot
-          </ToggleButton>
-          <ToggleButton
-            pressed={mode === "local"}
-            onClick={() => newGame({ mode: "local" })}
-          >
-            À deux
-          </ToggleButton>
-        </ToggleRow>
-
-        {mode === "bot" && (
-          <ToggleRow label="Niveau :">
-            {BOT_LEVELS.map((candidate) => (
-              <ToggleButton
-                key={candidate.id}
-                pressed={level === candidate.id}
-                onClick={() => setLevel(candidate.id)}
-              >
-                {candidate.label}
-              </ToggleButton>
-            ))}
-          </ToggleRow>
-        )}
-
-        <ToggleRow label="Jouer avec :">
-          <ToggleButton
-            pressed={playerSide === "white"}
-            onClick={() => newGame({ side: "white" })}
-          >
-            Blancs
-          </ToggleButton>
-          <ToggleButton
-            pressed={playerSide === "black"}
-            onClick={() => newGame({ side: "black" })}
-          >
-            Noirs
-          </ToggleButton>
-        </ToggleRow>
+        <p className="text-muted-foreground text-sm">
+          {settingsSummary(settings)}
+        </p>
 
         <Card size="sm">
           <CardHeader>
@@ -497,6 +469,13 @@ export function GameBoard() {
         </Card>
       </div>
 
+      <NewGameDialog
+        open={settingsOpen}
+        initial={lastChoice}
+        onStart={startGame}
+        onCancel={() => setSettingsOpen(false)}
+      />
+
       <PromotionDialog
         open={pendingPromotion !== null}
         color={turn}
@@ -504,41 +483,5 @@ export function GameBoard() {
         onCancel={() => setPendingPromotion(null)}
       />
     </div>
-  );
-}
-
-function ToggleRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-1 text-sm">
-      <span className="text-muted-foreground mr-1">{label}</span>
-      {children}
-    </div>
-  );
-}
-
-function ToggleButton({
-  pressed,
-  onClick,
-  children,
-}: {
-  pressed: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <Button
-      size="sm"
-      variant={pressed ? "secondary" : "ghost"}
-      aria-pressed={pressed}
-      onClick={onClick}
-    >
-      {children}
-    </Button>
   );
 }
