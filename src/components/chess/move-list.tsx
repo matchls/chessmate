@@ -43,7 +43,7 @@ function MoveCell({
       onClick={() => onSelect?.(index)}
       aria-current={current ? "step" : undefined}
       title={info?.label}
-      className={`-mx-1 rounded-sm px-1 py-0.5 text-left ${
+      className={`-mx-1 cursor-pointer rounded-sm px-1 py-0.5 text-left ${
         current ? "bg-or-100 font-semibold" : "hover:bg-or-100/60"
       }`}
     >
