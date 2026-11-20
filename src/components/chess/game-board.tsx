@@ -18,6 +18,7 @@ import { CoachPanel } from "@/components/coach/coach-panel";
 import { NewGameDialog } from "@/components/chess/new-game-dialog";
 import { PromotionDialog } from "@/components/chess/promotion-dialog";
 import { ResignDialog } from "@/components/chess/resign-dialog";
+import { TurnIndicator } from "@/components/chess/turn-indicator";
 import { SecondChanceOffer } from "@/components/chess/second-chance-offer";
 import { ReviewControls } from "@/components/chess/review-controls";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,6 @@ import {
   needsPromotion,
   positionsOf,
   replay,
-  statusLabel,
   tryMove,
   type Color,
   type MoveInput,
@@ -48,6 +48,7 @@ import {
   type SettingsChoice,
   type Side,
 } from "@/lib/chess/game-settings";
+import { turnIndicator } from "@/lib/chess/turn-indicator";
 import {
   ANALYSIS_WAIT_MS,
   botGate,
@@ -464,18 +465,14 @@ export function GameBoard() {
       </div>
 
       <div className="flex w-full flex-col gap-4 lg:w-80">
-        <div role="status" aria-live="polite" className="flex flex-col gap-1">
-          <p
-            className={
-              isOver ? "text-lg font-semibold" : "text-base font-medium"
-            }
-          >
-            {statusLabel(status)}
-          </p>
-          {isBotTurn && (
-            <p className="text-muted-foreground text-sm">Le bot réfléchit…</p>
-          )}
-        </div>
+        <TurnIndicator
+          indicator={turnIndicator({
+            status,
+            mode,
+            playerColor: sideToColor(playerSide),
+            awaitingDecision: offer !== null,
+          })}
+        />
 
         {offer && (
           <SecondChanceOffer

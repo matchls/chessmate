@@ -14,6 +14,7 @@ import { NewGameDemo } from "./new-game-demo";
 import { ResignDemo } from "./resign-demo";
 import { ReviewDemo } from "./review-demo";
 import { SecondChanceDemo } from "./second-chance-demo";
+import { TurnDemo } from "./turn-demo";
 
 /*
  * Planche du design system : affiche les vrais tokens et composants de l'appli.
@@ -307,6 +308,13 @@ export default function DesignSystemPage() {
         description="Fenêtre de réglages (adversaire, niveau, couleur) ouverte avant chaque partie ; pendant la partie, un résumé en lecture seule."
       >
         <NewGameDemo />
+      </Section>
+
+      <Section
+        title="Trait"
+        description="Pastille aux couleurs du camp au trait (ou du gagnant), toujours accompagnée du texte : l'information ne repose pas sur la seule couleur. Elle pulse pendant que le bot réfléchit."
+      >
+        <TurnDemo />
       </Section>
 
       <Section
