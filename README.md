@@ -28,6 +28,20 @@ pnpm dev
 
 L'app tourne sur http://localhost:3000.
 
+### Base de données
+
+La partie et le coach marchent sans base. Pour les comptes et l'historique, il faut une base
+PostgreSQL Neon : dans `.env.local`, `DATABASE_URL` pointe vers une **branche Neon de
+développement**, jamais vers la production. Puis :
+
+```bash
+pnpm db:migrate   # applique les migrations sur la base de développement
+```
+
+Pour modifier le schéma (`prisma/schema.prisma`) : `pnpm db:migrate --name <description>`
+crée la migration à committer avec le changement. Sur Vercel, les migrations sont appliquées
+au déploiement (`pnpm db:deploy`, dans `vercel-build`).
+
 ## Scripts
 
 | Commande            | Rôle                                                   |
@@ -41,6 +55,8 @@ L'app tourne sur http://localhost:3000.
 | `pnpm test`         | Tests unitaires Vitest                                 |
 | `pnpm check`        | Toutes les vérifications de la CI                      |
 | `pnpm coach:bench`  | Banc d'essai du coach (vraie API, rapport dans `tmp/`) |
+| `pnpm db:migrate`   | Crée / applique les migrations (base de développement) |
+| `pnpm db:generate`  | Régénère le client Prisma (aussi après `pnpm install`) |
 
 ## Workflow
 
