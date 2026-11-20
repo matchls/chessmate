@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { NewGameDemo } from "./new-game-demo";
 import { ReviewDemo } from "./review-demo";
+import { SecondChanceDemo } from "./second-chance-demo";
 
 /*
  * Planche du design system : affiche les vrais tokens et composants de l'appli.
@@ -305,6 +306,13 @@ export default function DesignSystemPage() {
         description="Fenêtre de réglages (adversaire, niveau, couleur) ouverte avant chaque partie ; pendant la partie, un résumé en lecture seule."
       >
         <NewGameDemo />
+      </Section>
+
+      <Section
+        title="Seconde chance"
+        description="Bandeau affiché juste après une erreur ou une gaffe contre le bot : rejouer (une chance en moins) ou continuer."
+      >
+        <SecondChanceDemo />
       </Section>
 
       <Section

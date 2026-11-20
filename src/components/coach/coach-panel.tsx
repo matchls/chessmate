@@ -20,6 +20,8 @@ export type ExplainPanelProps = {
   explanation: Explanation | null;
   onWhy: () => void;
   onSolution: () => void;
+  /** Faux pendant une seconde chance : « Voir la solution » est masqué. */
+  solutionAllowed?: boolean;
 };
 
 type CoachPanelProps = {
@@ -156,6 +158,7 @@ function ExplainSection({
   explanation,
   onWhy,
   onSolution,
+  solutionAllowed = true,
 }: ExplainPanelProps) {
   const why = explanation?.why;
   const solution = explanation?.solution;
@@ -189,17 +192,21 @@ function ExplainSection({
           <Button
             variant="outline"
             size="sm"
-            onClick={why ? onSolution : onWhy}
+            onClick={why && solutionAllowed ? onSolution : onWhy}
           >
             Réessayer
           </Button>
         </div>
       )}
-      {why && !solution && !loading && !explanation?.error && (
-        <Button variant="outline" onClick={onSolution} className="self-start">
-          Voir la solution
-        </Button>
-      )}
+      {solutionAllowed &&
+        why &&
+        !solution &&
+        !loading &&
+        !explanation?.error && (
+          <Button variant="outline" onClick={onSolution} className="self-start">
+            Voir la solution
+          </Button>
+        )}
     </section>
   );
 }
