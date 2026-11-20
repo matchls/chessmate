@@ -17,6 +17,7 @@ import { MoveList } from "@/components/chess/move-list";
 import { CoachPanel } from "@/components/coach/coach-panel";
 import { NewGameDialog } from "@/components/chess/new-game-dialog";
 import { PromotionDialog } from "@/components/chess/promotion-dialog";
+import { ResignDialog } from "@/components/chess/resign-dialog";
 import { SecondChanceOffer } from "@/components/chess/second-chance-offer";
 import { ReviewControls } from "@/components/chess/review-controls";
 import { Button } from "@/components/ui/button";
@@ -130,10 +131,13 @@ export function GameBoard() {
   const [settledAt, setSettledAt] = useState<number | null>(null);
   /** Partie « avec aide » : au moins une seconde chance a servi (gardé avec la partie). */
   const [assisted, setAssisted] = useState(false);
+  /** Camp qui a abandonné (gardé avec la partie pour l'historique, #12). */
+  const [resignedBy, setResignedBy] = useState<Color | null>(null);
+  const [resignOpen, setResignOpen] = useState(false);
 
   const game = useMemo(() => replay(moves), [moves]);
   const fen = game.fen();
-  const status = getStatus(game);
+  const status = getStatus(game, resignedBy);
   const isOver = status.kind !== "playing";
   const turn: Color = game.turn();
   const isBotTurn =
@@ -149,6 +153,10 @@ export function GameBoard() {
   );
   const lastMove = moves[shown - 1];
   const canPlay = !isOver && !isBotTurn && !reviewing;
+  /** Abandon : partie en cours, au moins un coup joué. Contre le bot, c'est le joueur qui
+   * abandonne ; à deux, le camp qui a le trait. */
+  const canResign = !isOver && moves.length > 0;
+  const resigningSide: Color = mode === "bot" ? sideToColor(playerSide) : turn;
   const orientation = flipped ? opposite(playerSide) : playerSide;
 
   // Analyse de chaque position par un second Stockfish, puis classement de chaque coup en
@@ -389,6 +397,8 @@ export function GameBoard() {
     setChancesUsed(0);
     setSettledAt(null);
     setAssisted(false);
+    setResignedBy(null);
+    setResignOpen(false);
     void engineRef.current?.newGame();
   }
 
@@ -507,6 +517,11 @@ export function GameBoard() {
 
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => setSettingsOpen(true)}>Nouvelle partie</Button>
+          {canResign && (
+            <Button variant="outline" onClick={() => setResignOpen(true)}>
+              Abandonner
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setFlipped(!flipped)}>
             Retourner l&apos;échiquier
           </Button>
@@ -536,6 +551,27 @@ export function GameBoard() {
           </CardContent>
         </Card>
       </div>
+
+      <ResignDialog
+        open={resignOpen && canResign}
+        title={
+          mode === "bot"
+            ? "Abandonner la partie ?"
+            : `Les ${turn === "w" ? "blancs" : "noirs"} abandonnent ?`
+        }
+        description={
+          mode === "bot"
+            ? "Le bot gagnera la partie."
+            : `Les ${turn === "w" ? "noirs" : "blancs"} gagneront la partie.`
+        }
+        onConfirm={() => {
+          setResignedBy(resigningSide);
+          setResignOpen(false);
+          setSelected(null);
+          setPendingPromotion(null);
+        }}
+        onCancel={() => setResignOpen(false)}
+      />
 
       <NewGameDialog
         open={settingsOpen}

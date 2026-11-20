@@ -188,3 +188,36 @@ describe("positionsOf", () => {
     });
   });
 });
+
+describe("abandon", () => {
+  it("le camp qui abandonne perd, avec le bon texte", () => {
+    const game = replay([{ from: "e2", to: "e4" }]);
+    expect(getStatus(game, "w")).toEqual({ kind: "resigned", winner: "b" });
+    expect(getStatus(game, "b")).toEqual({ kind: "resigned", winner: "w" });
+    expect(statusLabel(getStatus(game, "w"))).toBe(
+      "Les noirs gagnent par abandon",
+    );
+    expect(statusLabel(getStatus(game, "b"))).toBe(
+      "Les blancs gagnent par abandon",
+    );
+  });
+
+  it("sans abandon, rien ne change", () => {
+    const game = replay([{ from: "e2", to: "e4" }]);
+    expect(getStatus(game, null)).toEqual(getStatus(game));
+    expect(getStatus(game).kind).toBe("playing");
+  });
+
+  it("une partie déjà finie par un mat ne peut pas être abandonnée", () => {
+    const foolsMate = replay([
+      { from: "f2", to: "f3" },
+      { from: "e7", to: "e5" },
+      { from: "g2", to: "g4" },
+      { from: "d8", to: "h4" },
+    ]);
+    expect(getStatus(foolsMate, "b")).toEqual({
+      kind: "checkmate",
+      winner: "b",
+    });
+  });
+});

@@ -16,7 +16,8 @@ export type DrawReason =
 export type GameStatus =
   | { kind: "playing"; turn: Color; check: boolean }
   | { kind: "checkmate"; winner: Color }
-  | { kind: "draw"; reason: DrawReason };
+  | { kind: "draw"; reason: DrawReason }
+  | { kind: "resigned"; winner: Color };
 
 export type MoveResult =
   { ok: true; moves: MoveInput[]; san: string } | { ok: false };
@@ -68,7 +69,22 @@ export function isOwnPiece(game: Chess, square: Square): boolean {
   return game.get(square)?.color === game.turn();
 }
 
-export function getStatus(game: Chess): GameStatus {
+/**
+ * État de la partie. `resignedBy` : camp qui a abandonné (null : personne). Un mat ou une
+ * nulle déjà sur l'échiquier l'emporte : on n'abandonne pas une partie déjà finie.
+ */
+export function getStatus(
+  game: Chess,
+  resignedBy: Color | null = null,
+): GameStatus {
+  const status = boardStatus(game);
+  if (resignedBy && status.kind === "playing") {
+    return { kind: "resigned", winner: resignedBy === "w" ? "b" : "w" };
+  }
+  return status;
+}
+
+function boardStatus(game: Chess): GameStatus {
   if (game.isCheckmate()) {
     return { kind: "checkmate", winner: game.turn() === "w" ? "b" : "w" };
   }
@@ -97,6 +113,8 @@ export function statusLabel(status: GameStatus): string {
       return `Échec et mat : les ${COLOR_LABEL[status.winner]} gagnent`;
     case "draw":
       return DRAW_LABEL[status.reason];
+    case "resigned":
+      return `Les ${COLOR_LABEL[status.winner]} gagnent par abandon`;
     case "playing":
       return `${status.check ? "Échec ! " : ""}Aux ${COLOR_LABEL[status.turn]} de jouer`;
   }
