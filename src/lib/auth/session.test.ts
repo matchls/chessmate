@@ -69,6 +69,12 @@ describe("retour après connexion", () => {
     expect(safeReturnPath("https://pirate.example")).toBe("/jouer");
     expect(safeReturnPath("//pirate.example")).toBe("/jouer");
     expect(safeReturnPath("/\\pirate.example")).toBe("/jouer");
+    // Le navigateur supprime tabulations et retours à la ligne : « /\t/x » deviendrait « //x ».
+    expect(safeReturnPath("/\t/pirate.example")).toBe("/jouer");
+    expect(safeReturnPath("/\n/pirate.example")).toBe("/jouer");
+    expect(safeReturnPath("/profil?onglet=parties")).toBe(
+      "/profil?onglet=parties",
+    );
     expect(signInRedirect("/profil")).toBe("/connexion?retour=%2Fprofil");
   });
 });
