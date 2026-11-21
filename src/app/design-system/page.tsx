@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/card";
 import { NewGameDemo } from "./new-game-demo";
 import { ResignDemo } from "./resign-demo";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ReviewDemo } from "./review-demo";
 import { SecondChanceDemo } from "./second-chance-demo";
 import { TurnDemo } from "./turn-demo";
@@ -300,6 +302,19 @@ export default function DesignSystemPage() {
           <p className="text-success">Réussite — vert-bouteille-300</p>
           <p className="text-destructive">Erreur — bordeaux-300</p>
           <p className="text-or">Accent — or</p>
+        </div>
+      </Section>
+
+      <Section
+        title="Champs de formulaire"
+        description="Input et Label de shadcn, utilisés par l'inscription et la connexion ; l'erreur s'affiche sous le champ, en bordeaux."
+      >
+        <div className="surface-parchemin flex max-w-sm flex-col gap-1.5 rounded-md p-4">
+          <Label htmlFor="demo-pseudo">Pseudo</Label>
+          <Input id="demo-pseudo" defaultValue="ab" />
+          <p className="text-destructive text-sm">
+            Le pseudo doit faire au moins 3 caractères.
+          </p>
         </div>
       </Section>
 
