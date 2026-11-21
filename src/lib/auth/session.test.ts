@@ -55,6 +55,14 @@ describe("session côté serveur", () => {
     expect(getSession).not.toHaveBeenCalled();
   });
 
+  it("connexion en panne (secret absent…) : invité, la page ne plante pas", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    getSession.mockRejectedValue(new Error("You are using the default secret"));
+    await expect(getCurrentUser()).resolves.toBeNull();
+    expect(error).toHaveBeenCalled();
+    error.mockRestore();
+  });
+
   it("valeurs par défaut : pseudo = nom, Elo 600", () => {
     expect(
       toCurrentUser({ user: { id: "u2", email: "a@b.c", name: "ana" } }),

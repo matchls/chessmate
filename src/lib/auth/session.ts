@@ -34,11 +34,19 @@ export function toCurrentUser(session: SessionLike): CurrentUser | null {
   };
 }
 
-/** Joueur connecté, ou null (mode invité, ou base pas encore configurée). */
+/** Joueur connecté, ou null (mode invité, base pas configurée, ou connexion en panne). */
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   if (!process.env.DATABASE_URL) return null;
-  const session = await getAuth().api.getSession({ headers: await headers() });
-  return toCurrentUser(session);
+  const requestHeaders = await headers();
+  try {
+    const session = await getAuth().api.getSession({ headers: requestHeaders });
+    return toCurrentUser(session);
+  } catch (error) {
+    // Connexion mal configurée (secret absent, base injoignable…) : le site reste jouable en
+    // invité ; l'erreur va dans les journaux du serveur au lieu de casser la page.
+    console.error("[auth] session illisible, mode invité", error);
+    return null;
+  }
 }
 
 /**
