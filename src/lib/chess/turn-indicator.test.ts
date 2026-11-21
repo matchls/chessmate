@@ -10,9 +10,7 @@ const playing = (turn: "w" | "b", check = false): GameStatus => ({
 
 describe("indicateur de trait", () => {
   it("contre le bot : à toi de jouer, ou le bot réfléchit", () => {
-    expect(
-      turnIndicator({ status: playing("w"), mode: "bot", playerColor: "w" }),
-    ).toEqual({
+    expect(turnIndicator({ status: playing("w"), playerColor: "w" })).toEqual({
       tone: "w",
       label: "À toi de jouer",
       detail: "Trait aux blancs",
@@ -20,34 +18,23 @@ describe("indicateur de trait", () => {
       over: false,
     });
     expect(
-      turnIndicator({ status: playing("b"), mode: "bot", playerColor: "w" }),
+      turnIndicator({ status: playing("b"), playerColor: "w" }),
     ).toMatchObject({ tone: "b", label: "Le bot réfléchit…", thinking: true });
   });
 
   it("le joueur qui a les noirs", () => {
     expect(
-      turnIndicator({ status: playing("b"), mode: "bot", playerColor: "b" }),
+      turnIndicator({ status: playing("b"), playerColor: "b" }),
     ).toMatchObject({ tone: "b", label: "À toi de jouer" });
     expect(
-      turnIndicator({ status: playing("w"), mode: "bot", playerColor: "b" }),
+      turnIndicator({ status: playing("w"), playerColor: "b" }),
     ).toMatchObject({ tone: "w", label: "Le bot réfléchit…" });
-  });
-
-  it("à deux : le camp au trait, en clair", () => {
-    expect(
-      turnIndicator({ status: playing("b"), mode: "local", playerColor: "w" }),
-    ).toMatchObject({
-      tone: "b",
-      label: "Aux noirs de jouer",
-      thinking: false,
-    });
   });
 
   it("échec : annoncé en tête", () => {
     expect(
       turnIndicator({
         status: playing("w", true),
-        mode: "bot",
         playerColor: "w",
       }).label,
     ).toBe("Échec ! À toi de jouer");
@@ -57,7 +44,6 @@ describe("indicateur de trait", () => {
     expect(
       turnIndicator({
         status: playing("b"),
-        mode: "bot",
         playerColor: "w",
         awaitingDecision: true,
       }),
@@ -71,7 +57,6 @@ describe("indicateur de trait", () => {
     expect(
       turnIndicator({
         status: { kind: "checkmate", winner: "b" },
-        mode: "bot",
         playerColor: "w",
       }),
     ).toMatchObject({
@@ -82,7 +67,6 @@ describe("indicateur de trait", () => {
     expect(
       turnIndicator({
         status: { kind: "resigned", winner: "w" },
-        mode: "local",
         playerColor: "w",
       }),
     ).toMatchObject({
@@ -93,7 +77,6 @@ describe("indicateur de trait", () => {
     expect(
       turnIndicator({
         status: { kind: "draw", reason: "stalemate" },
-        mode: "bot",
         playerColor: "w",
       }),
     ).toMatchObject({ tone: null, over: true });

@@ -5,7 +5,7 @@ import type { MoveClass } from "@/lib/engine/evaluation";
 
 /**
  * Seconde chance : contre le bot, juste après une gaffe (??) ou une erreur (?), le joueur
- * peut rejouer son coup, un nombre limité de fois par partie. Jamais à deux. La solution
+ * peut rejouer son coup, un nombre limité de fois par partie. La solution
  * n'est pas montrée : rejouer, c'est chercher mieux soi-même.
  */
 
@@ -21,7 +21,7 @@ export const SECOND_CHANCES: Record<BotLevelId, number> = {
 export const ANALYSIS_WAIT_MS = 3000;
 
 export function chancesFor(settings: GameSettings): number {
-  return settings.mode === "bot" ? SECOND_CHANCES[settings.level] : 0;
+  return SECOND_CHANCES[settings.level];
 }
 
 /** Ce que le bot doit faire quand c'est à lui : jouer, attendre l'analyse, ou attendre le joueur. */

@@ -11,8 +11,8 @@ import {
 } from "./explain-session";
 
 describe("qui peut demander « Pourquoi ? »", () => {
-  it("contre le bot : seulement les coups signalés du joueur", () => {
-    const base = { mode: "bot" as const, playerColor: "w" as const };
+  it("seulement les coups signalés du joueur, jamais ceux du bot", () => {
+    const base = { playerColor: "w" as const };
     expect(canExplain({ ...base, moveIndex: 2, moveClass: "blunder" })).toBe(
       true,
     );
@@ -27,22 +27,11 @@ describe("qui peut demander « Pourquoi ? »", () => {
     );
     expect(
       canExplain({
-        mode: "bot",
         playerColor: "b",
         moveIndex: 3,
         moveClass: "mistake",
       }),
     ).toBe(true);
-  });
-
-  it("à deux : les coups signalés des deux camps", () => {
-    const base = { mode: "local" as const, playerColor: "w" as const };
-    expect(canExplain({ ...base, moveIndex: 2, moveClass: "inaccuracy" })).toBe(
-      true,
-    );
-    expect(canExplain({ ...base, moveIndex: 3, moveClass: "mistake" })).toBe(
-      true,
-    );
   });
 });
 

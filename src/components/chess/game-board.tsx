@@ -121,8 +121,7 @@ export function GameBoard() {
   const [lastChoice, setLastChoice] = useState<SettingsChoice>(DEFAULT_CHOICE);
   /** La fenêtre s'ouvre à l'arrivée sur la page : on choisit avant de jouer. */
   const [settingsOpen, setSettingsOpen] = useState(true);
-  const { mode } = settings;
-  /** Camp du joueur : en mode bot, le bot joue l'autre camp. */
+  /** Camp du joueur : le bot joue l'autre camp. */
   const playerSide: Side = settings.side;
   const [flipped, setFlipped] = useState(false);
   /** Coup affiché pendant une revue (null : le direct). */
@@ -141,8 +140,7 @@ export function GameBoard() {
   const status = getStatus(game, resignedBy);
   const isOver = status.kind !== "playing";
   const turn: Color = game.turn();
-  const isBotTurn =
-    mode === "bot" && !isOver && turn !== sideToColor(playerSide);
+  const isBotTurn = !isOver && turn !== sideToColor(playerSide);
   const sanHistory = game.history();
 
   // Revue : l'échiquier montre la position après `shown` coups, sans toucher à la partie.
@@ -154,10 +152,9 @@ export function GameBoard() {
   );
   const lastMove = moves[shown - 1];
   const canPlay = !isOver && !isBotTurn && !reviewing;
-  /** Abandon : partie en cours, au moins un coup joué. Contre le bot, c'est le joueur qui
-   * abandonne ; à deux, le camp qui a le trait. */
+  /** Abandon : partie en cours, au moins un coup joué ; c'est le joueur qui abandonne. */
   const canResign = !isOver && moves.length > 0;
-  const resigningSide: Color = mode === "bot" ? sideToColor(playerSide) : turn;
+  const resigningSide: Color = sideToColor(playerSide);
   const orientation = flipped ? opposite(playerSide) : playerSide;
 
   // Analyse de chaque position par un second Stockfish, puis classement de chaque coup en
@@ -223,7 +220,6 @@ export function GameBoard() {
     canExplain({
       moveIndex: candidate,
       moveClass: candidateClass,
-      mode,
       playerColor: sideToColor(playerSide),
     });
 
@@ -468,7 +464,6 @@ export function GameBoard() {
         <TurnIndicator
           indicator={turnIndicator({
             status,
-            mode,
             playerColor: sideToColor(playerSide),
             awaitingDecision: offer !== null,
           })}
@@ -551,16 +546,8 @@ export function GameBoard() {
 
       <ResignDialog
         open={resignOpen && canResign}
-        title={
-          mode === "bot"
-            ? "Abandonner la partie ?"
-            : `Les ${turn === "w" ? "blancs" : "noirs"} abandonnent ?`
-        }
-        description={
-          mode === "bot"
-            ? "Le bot gagnera la partie."
-            : `Les ${turn === "w" ? "noirs" : "blancs"} gagneront la partie.`
-        }
+        title="Abandonner la partie ?"
+        description="Le bot gagnera la partie."
         onConfirm={() => {
           setResignedBy(resigningSide);
           setResignOpen(false);

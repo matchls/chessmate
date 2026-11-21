@@ -13,21 +13,18 @@ export function moverOf(moveIndex: number): Color {
 
 /**
  * Peut-on demander « Pourquoi ? » sur ce coup ? Il faut qu'il soit signalé (pas « bon ») et,
- * contre le bot, que ce soit un coup du joueur ; à deux, tous les coups signalés comptent.
+ * que ce soit un coup du joueur (pas un coup du bot).
  */
 export function canExplain({
   moveIndex,
   moveClass,
-  mode,
   playerColor,
 }: {
   moveIndex: number;
   moveClass: MoveClass | undefined;
-  mode: "bot" | "local";
   playerColor: Color;
 }): boolean {
   if (moveIndex < 0 || !moveClass || moveClass === "good") return false;
-  if (mode === "local") return true;
   return moverOf(moveIndex) === playerColor;
 }
 

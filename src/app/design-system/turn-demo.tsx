@@ -6,33 +6,27 @@ export function TurnDemo() {
   const states = [
     turnIndicator({
       status: { kind: "playing", turn: "w", check: false },
-      mode: "bot",
       playerColor: "w",
     }),
     turnIndicator({
       status: { kind: "playing", turn: "b", check: false },
-      mode: "bot",
       playerColor: "w",
     }),
     turnIndicator({
       status: { kind: "playing", turn: "w", check: true },
-      mode: "local",
       playerColor: "w",
     }),
     turnIndicator({
       status: { kind: "playing", turn: "b", check: false },
-      mode: "bot",
       playerColor: "w",
       awaitingDecision: true,
     }),
     turnIndicator({
       status: { kind: "checkmate", winner: "b" },
-      mode: "bot",
       playerColor: "w",
     }),
     turnIndicator({
       status: { kind: "draw", reason: "stalemate" },
-      mode: "bot",
       playerColor: "w",
     }),
   ];
