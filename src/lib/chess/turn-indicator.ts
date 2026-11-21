@@ -21,13 +21,11 @@ const COLOR_NAME: Record<Color, string> = { w: "blancs", b: "noirs" };
 
 export function turnIndicator({
   status,
-  mode,
   playerColor,
   awaitingDecision = false,
 }: {
   status: GameStatus;
-  mode: "bot" | "local";
-  /** Camp du joueur contre le bot (ignoré à deux). */
+  /** Camp du joueur ; le bot joue l'autre. */
   playerColor: Color;
   /** Seconde chance proposée : le bot attend la décision du joueur. */
   awaitingDecision?: boolean;
@@ -43,14 +41,6 @@ export function turnIndicator({
 
   const check = status.check ? "Échec ! " : "";
   const detail = `Trait aux ${COLOR_NAME[status.turn]}`;
-  if (mode === "local") {
-    return {
-      tone: status.turn,
-      label: `${check}Aux ${COLOR_NAME[status.turn]} de jouer`,
-      thinking: false,
-      over: false,
-    };
-  }
   if (status.turn === playerColor) {
     return {
       tone: status.turn,

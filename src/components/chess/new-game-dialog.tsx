@@ -28,7 +28,7 @@ const SIDES: { value: SideChoice; label: string }[] = [
 ];
 
 /**
- * Fenêtre « Nouvelle partie » : adversaire, niveau et couleur se choisissent ici, avant de
+ * Fenêtre « Nouvelle partie » : niveau du bot et couleur se choisissent ici, avant de
  * commencer. « Annuler » ferme la fenêtre et garde la partie en cours intacte.
  */
 export function NewGameDialog({
@@ -72,47 +72,28 @@ function NewGameForm({
       </DialogHeader>
 
       <div className="flex flex-col gap-3">
-        <ChoiceRow label="Adversaire">
-          <ChoiceButton
-            pressed={choice.mode === "bot"}
-            onClick={() => update({ mode: "bot" })}
-          >
-            Bot
-          </ChoiceButton>
-          <ChoiceButton
-            pressed={choice.mode === "local"}
-            onClick={() => update({ mode: "local" })}
-          >
-            À deux
-          </ChoiceButton>
+        <ChoiceRow label="Niveau du bot">
+          {BOT_LEVELS.map((level) => (
+            <ChoiceButton
+              key={level.id}
+              pressed={choice.level === level.id}
+              onClick={() => update({ level: level.id })}
+            >
+              {level.label}
+            </ChoiceButton>
+          ))}
         </ChoiceRow>
-
-        {choice.mode === "bot" && (
-          <>
-            <ChoiceRow label="Niveau du bot">
-              {BOT_LEVELS.map((level) => (
-                <ChoiceButton
-                  key={level.id}
-                  pressed={choice.level === level.id}
-                  onClick={() => update({ level: level.id })}
-                >
-                  {level.label}
-                </ChoiceButton>
-              ))}
-            </ChoiceRow>
-            <ChoiceRow label="Tu joues">
-              {SIDES.map((side) => (
-                <ChoiceButton
-                  key={side.value}
-                  pressed={choice.side === side.value}
-                  onClick={() => update({ side: side.value })}
-                >
-                  {side.label}
-                </ChoiceButton>
-              ))}
-            </ChoiceRow>
-          </>
-        )}
+        <ChoiceRow label="Tu joues">
+          {SIDES.map((side) => (
+            <ChoiceButton
+              key={side.value}
+              pressed={choice.side === side.value}
+              onClick={() => update({ side: side.value })}
+            >
+              {side.label}
+            </ChoiceButton>
+          ))}
+        </ChoiceRow>
       </div>
 
       <DialogFooter>

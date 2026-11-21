@@ -320,7 +320,7 @@ export default function DesignSystemPage() {
 
       <Section
         title="Nouvelle partie"
-        description="Fenêtre de réglages (adversaire, niveau, couleur) ouverte avant chaque partie ; pendant la partie, un résumé en lecture seule."
+        description="Fenêtre de réglages (niveau du bot, couleur) ouverte avant chaque partie ; pendant la partie, un résumé en lecture seule."
       >
         <NewGameDemo />
       </Section>

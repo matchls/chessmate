@@ -8,7 +8,6 @@ import {
 describe("réglages de partie", () => {
   it("par défaut : bot 1000, blancs", () => {
     expect(resolveSettings(DEFAULT_CHOICE)).toEqual({
-      mode: "bot",
       level: 1000,
       side: "white",
     });
@@ -20,18 +19,9 @@ describe("réglages de partie", () => {
     expect(resolveSettings(choice, () => 0.8).side).toBe("black");
   });
 
-  it("à deux : ni niveau ni camp du joueur", () => {
-    expect(
-      resolveSettings({ mode: "local", level: 1500, side: "black" }),
-    ).toEqual({ mode: "local", level: null, side: "white" });
-  });
-
   it("résumé affiché pendant la partie", () => {
-    expect(settingsSummary({ mode: "bot", level: 1200, side: "black" })).toBe(
+    expect(settingsSummary({ level: 1200, side: "black" })).toBe(
       "Bot 1200 · tu joues les noirs",
-    );
-    expect(settingsSummary({ mode: "local", level: null, side: "white" })).toBe(
-      "À deux sur le même écran",
     );
   });
 });

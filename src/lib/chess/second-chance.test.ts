@@ -8,16 +8,14 @@ import {
   withoutLastMove,
 } from "./second-chance";
 
-const BOT_1000: GameSettings = { mode: "bot", level: 1000, side: "white" };
-const LOCAL: GameSettings = { mode: "local", level: null, side: "white" };
+const BOT_1000: GameSettings = { level: 1000, side: "white" };
 
 describe("seconde chance", () => {
-  it("nombre de chances selon le niveau, aucune à deux", () => {
+  it("nombre de chances selon le niveau", () => {
     expect(chancesFor({ ...BOT_1000, level: 800 })).toBe(3);
     expect(chancesFor(BOT_1000)).toBe(3);
     expect(chancesFor({ ...BOT_1000, level: 1200 })).toBe(2);
     expect(chancesFor({ ...BOT_1000, level: 1500 })).toBe(0);
-    expect(chancesFor(LOCAL)).toBe(0);
   });
 
   const gate = (patch: Partial<Parameters<typeof botGate>[0]>) =>
@@ -41,9 +39,8 @@ describe("seconde chance", () => {
     expect(gate({ lastMoveClass: undefined })).toBe("wait-analysis");
   });
 
-  it("plus de chance, à deux ou au niveau 1500 : le bot joue sans attendre", () => {
+  it("plus de chance, ou niveau 1500 : le bot joue sans attendre", () => {
     expect(gate({ used: 3, lastMoveClass: "blunder" })).toBe("play");
-    expect(gate({ settings: LOCAL, lastMoveClass: "blunder" })).toBe("play");
     expect(
       gate({
         settings: { ...BOT_1000, level: 1500 },
