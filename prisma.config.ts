@@ -16,6 +16,7 @@ export default defineConfig({
   migrations: { path: "prisma/migrations" },
   datasource: {
     url: process.env.DATABASE_URL ?? "",
-    shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL,
+    // Ligne vide dans .env.local = absente : Prisma crée alors une base fantôme temporaire.
+    shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL || undefined,
   },
 });
