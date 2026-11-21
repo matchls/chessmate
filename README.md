@@ -28,6 +28,16 @@ pnpm dev
 
 L'app tourne sur http://localhost:3000.
 
+### Installer l'app sur son téléphone
+
+ChessMate est une PWA (application web installable) : depuis le site,
+
+- **Android (Chrome)** : menu ⋮ → « Installer l'application » (ou « Ajouter à l'écran d'accueil ») ;
+- **iPhone (Safari)** : bouton Partager → « Sur l'écran d'accueil ».
+
+L'app s'ouvre alors en plein écran avec son icône. Pas de mode hors ligne : le coach a besoin du
+réseau. Icônes et sources : `design/icons/`.
+
 ### Base de données
 
 La partie et le coach marchent sans base. Pour les comptes et l'historique, il faut une base
