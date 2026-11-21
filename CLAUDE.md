@@ -49,7 +49,9 @@ entretien d'embauche**.
   à décider ; extracteur de faits (`src/lib/coach/facts.ts`) ; garde-fou (`guard.ts`) ;
   sortie JSON validée par Zod
 - PostgreSQL Neon + Prisma 7 (`prisma/schema.prisma`, client généré dans `src/generated/prisma`,
-  accès serveur via `src/lib/db.ts`) ; auth Better Auth (étape suivante)
+  accès serveur via `src/lib/db.ts`) ; comptes Better Auth (`src/lib/auth/` : e-mail ou pseudo +
+  mot de passe, sessions en base, cookie httpOnly ; `requireUser()` protège une page côté serveur ;
+  le mode invité reste le fonctionnement par défaut)
 - Gestionnaire de paquets : **pnpm uniquement**
 - Déploiement Vercel (preview par PR) ; CI GitHub Actions ; relecture automatique par Claude
 

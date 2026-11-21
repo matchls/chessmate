@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Suspense } from "react";
+import { UserMenu } from "@/components/auth/user-menu";
 import { GeistMono } from "geist/font/mono";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
@@ -31,10 +34,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col">
         <header className="border-b">
-          <div className="mx-auto flex h-14 w-full max-w-5xl items-center px-4">
-            <span className="font-heading text-or text-2xl font-semibold">
+          <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between gap-4 px-4">
+            <Link
+              href="/"
+              className="font-heading text-or text-2xl font-semibold"
+            >
               ChessMate
-            </span>
+            </Link>
+            <Suspense>
+              <UserMenu />
+            </Suspense>
           </div>
         </header>
         {children}

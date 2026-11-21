@@ -38,6 +38,9 @@ développement**, jamais vers la production. Puis :
 pnpm db:migrate   # applique les migrations sur la base de développement
 ```
 
+Les comptes (Better Auth) demandent aussi `BETTER_AUTH_SECRET` dans `.env.local` (voir
+`.env.example` pour le générer).
+
 Pour modifier le schéma (`prisma/schema.prisma`) : `pnpm db:migrate --name <description>`
 crée la migration à committer avec le changement. Sur Vercel, les migrations sont appliquées
 au déploiement (`pnpm db:deploy`, dans `vercel-build`).
