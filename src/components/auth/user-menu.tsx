@@ -18,7 +18,10 @@ export async function UserMenu() {
     );
   }
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-3">
+      <Link href="/historique" className="text-sm hover:underline">
+        Historique
+      </Link>
       <Link href="/profil" className="text-sm hover:underline">
         <span className="font-medium">{user.username}</span>
         <span className="text-muted-foreground"> · Elo {user.elo}</span>

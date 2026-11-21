@@ -14,6 +14,7 @@ import { NewGameDemo } from "./new-game-demo";
 import { ResignDemo } from "./resign-demo";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { GameSaveNotice } from "@/components/chess/game-save-notice";
 import { ReviewDemo } from "./review-demo";
 import { SecondChanceDemo } from "./second-chance-demo";
 import { TurnDemo } from "./turn-demo";
@@ -330,6 +331,27 @@ export default function DesignSystemPage() {
         description="Pastille aux couleurs du camp au trait (ou du gagnant), toujours accompagnée du texte : l'information ne repose pas sur la seule couleur. Elle pulse pendant que le bot réfléchit."
       >
         <TurnDemo />
+      </Section>
+
+      <Section
+        title="Fin de partie"
+        description="Message sous l'indicateur de trait : partie enregistrée et variation d'Elo pour un joueur connecté, invitation à créer un compte en invité."
+      >
+        <div className="flex flex-col gap-2">
+          <GameSaveNotice
+            state={{
+              status: "saved",
+              message: "Partie enregistrée · Elo 600 → 624 (+24)",
+            }}
+          />
+          <GameSaveNotice state={{ status: "guest" }} />
+          <GameSaveNotice
+            state={{
+              status: "error",
+              message: "La partie n'a pas pu être enregistrée.",
+            }}
+          />
+        </div>
       </Section>
 
       <Section

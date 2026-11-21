@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import {
   Card,
@@ -34,9 +35,9 @@ async function Profile() {
         <p>
           Elo : <span className="font-semibold">{user.elo}</span>
         </p>
-        <p className="text-muted-foreground">
-          L&apos;historique de tes parties arrive bientôt.
-        </p>
+        <Link href="/historique" className="underline underline-offset-4">
+          Voir l&apos;historique de tes parties
+        </Link>
       </CardContent>
     </Card>
   );

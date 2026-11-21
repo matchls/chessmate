@@ -114,6 +114,8 @@ enum GameTermination {
 /// Une partie terminée, enregistrée pour un joueur connecté (issue #12).
 model Game {
   id                String          @id @default(cuid())
+  /// Tiré par le navigateur au lancement de la partie : une partie n'est enregistrée qu'une fois.
+  clientGameId      String          @unique
   userId            String
   user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   mode              GameMode
