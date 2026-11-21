@@ -16,6 +16,7 @@ import {
 import { MoveList } from "@/components/chess/move-list";
 import { CoachPanel } from "@/components/coach/coach-panel";
 import { NewGameDialog } from "@/components/chess/new-game-dialog";
+import { GameSaveNotice } from "@/components/chess/game-save-notice";
 import { PromotionDialog } from "@/components/chess/promotion-dialog";
 import { ResignDialog } from "@/components/chess/resign-dialog";
 import { TurnIndicator } from "@/components/chess/turn-indicator";
@@ -24,6 +25,8 @@ import { ReviewControls } from "@/components/chess/review-controls";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCoach } from "@/hooks/use-coach";
+import { useGameSave } from "@/hooks/use-game-save";
+import { buildSaveRequest } from "@/lib/games/client";
 import { useExplain } from "@/hooks/use-explain";
 import { usePositionAnalysis } from "@/hooks/use-position-analysis";
 import { useStockfish } from "@/hooks/use-stockfish";
@@ -131,6 +134,8 @@ export function GameBoard() {
   const [settledAt, setSettledAt] = useState<number | null>(null);
   /** Partie « avec aide » : au moins une seconde chance a servi (gardé avec la partie). */
   const [assisted, setAssisted] = useState(false);
+  /** Numéro de la partie dans la page : une partie n'est enregistrée qu'une fois (#12). */
+  const [gameNumber, setGameNumber] = useState(0);
   /** Camp qui a abandonné (gardé avec la partie pour l'historique, #12). */
   const [resignedBy, setResignedBy] = useState<Color | null>(null);
   const [resignOpen, setResignOpen] = useState(false);
@@ -202,6 +207,23 @@ export function GameBoard() {
     const timer = setTimeout(() => setSettledAt(count), ANALYSIS_WAIT_MS);
     return () => clearTimeout(timer);
   }, [gate, moves.length]);
+
+  // Fin de partie : enregistrement pour un joueur connecté (le serveur revérifie tout).
+  const saveState = useGameSave({
+    gameNumber,
+    isOver,
+    buildRequest: (clientGameId) =>
+      moves.length === 0
+        ? null
+        : buildSaveRequest({
+            clientGameId,
+            moves,
+            settings,
+            resigned: resignedBy !== null,
+            assisted,
+            secondChancesUsed: chancesUsed,
+          }),
+  });
 
   // Coach : à la demande seulement, sur la position affichée. Sa réponse disparaît au coup suivant.
   const coach = useCoach(fen);
@@ -384,6 +406,7 @@ export function GameBoard() {
   }
 
   function resetBoard() {
+    setGameNumber((number) => number + 1);
     setMoves([]);
     setSelected(null);
     setPendingPromotion(null);
@@ -468,6 +491,8 @@ export function GameBoard() {
             awaitingDecision: offer !== null,
           })}
         />
+
+        <GameSaveNotice state={saveState} />
 
         {offer && (
           <SecondChanceOffer

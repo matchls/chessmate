@@ -51,7 +51,8 @@ entretien d'embauche**.
 - PostgreSQL Neon + Prisma 7 (`prisma/schema.prisma`, client généré dans `src/generated/prisma`,
   accès serveur via `src/lib/db.ts`) ; comptes Better Auth (`src/lib/auth/` : e-mail ou pseudo +
   mot de passe, sessions en base, cookie httpOnly ; `requireUser()` protège une page côté serveur ;
-  le mode invité reste le fonctionnement par défaut)
+  le mode invité reste le fonctionnement par défaut) ; parties et Elo (`src/lib/elo.ts`,
+  `src/lib/games/` : enregistrement revérifié par le serveur via `/api/games`, page `/historique`)
 - Gestionnaire de paquets : **pnpm uniquement**
 - Déploiement Vercel (preview par PR) ; CI GitHub Actions ; relecture automatique par Claude
 
