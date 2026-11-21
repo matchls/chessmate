@@ -48,7 +48,8 @@ entretien d'embauche**.
   `COACH_PROVIDER`) ; Groq gratuit en local et sur les previews (`openai/gpt-oss-120b`), production
   à décider ; extracteur de faits (`src/lib/coach/facts.ts`) ; garde-fou (`guard.ts`) ;
   sortie JSON validée par Zod
-- PostgreSQL Neon + Prisma, auth Better Auth (étapes ultérieures)
+- PostgreSQL Neon + Prisma 7 (`prisma/schema.prisma`, client généré dans `src/generated/prisma`,
+  accès serveur via `src/lib/db.ts`) ; auth Better Auth (étape suivante)
 - Gestionnaire de paquets : **pnpm uniquement**
 - Déploiement Vercel (preview par PR) ; CI GitHub Actions ; relecture automatique par Claude
 
@@ -72,6 +73,9 @@ Issue → plan → feu vert → branche → code + tests → pnpm check → PR (
 - `pnpm lint` · `pnpm typecheck` · `pnpm test` · `pnpm build`
 - `pnpm format` — remet le code en forme ; `pnpm format:check` vérifie sans modifier
 - `pnpm check` — tout ce que fait la CI ; lancé automatiquement avant chaque push
+- `pnpm db:migrate --name <description>` — crée et applique une migration sur la base de
+  développement (`DATABASE_URL` dans `.env.local`) ; `pnpm db:generate` régénère le client Prisma
+  (lancé aussi après `pnpm install`) ; au déploiement, Vercel applique les migrations (`vercel-build`)
 - `pnpm coach:bench` — banc d'essai du coach sur 20 positions (vraie API, clé dans `.env.local`), rapport dans `tmp/`
 
 ## Structure

@@ -17,6 +17,22 @@ jobs:
     name: Lint, types, tests, build
     runs-on: ubuntu-latest
 
+    # Base PostgreSQL jetable, seulement pour vérifier que les migrations collent au schéma.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: shadow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v4
@@ -32,6 +48,15 @@ jobs:
 
       - name: Installer les dépendances
         run: pnpm install --frozen-lockfile
+
+      - name: Schéma de la base valide (Prisma)
+        run: pnpm db:validate
+
+      # Échoue si le schéma a changé sans migration (ou l'inverse) : code de sortie 2.
+      - name: Migrations à jour avec le schéma (Prisma)
+        run: pnpm exec prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code
+        env:
+          SHADOW_DATABASE_URL: postgresql://ci:ci@localhost:5432/shadow
 
       - name: Mise en forme du code (Prettier)
         run: pnpm format:check
