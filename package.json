@@ -19,7 +19,7 @@
     "db:validate": "prisma validate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "node scripts/migrate-deploy.mjs",
-    "vercel-build": "pnpm db:deploy && next build",
+    "vercel-build": "prisma generate && pnpm db:deploy && next build",
     "coach:bench": "vitest run --config vitest.bench.config.mts"
   },
   "dependencies": {
