@@ -20,7 +20,7 @@ export const SECOND_CHANCES: Record<BotLevelId, number> = {
 /** Combien de temps le bot attend l'analyse du coup du joueur avant de jouer quand même. */
 export const ANALYSIS_WAIT_MS = 3000;
 
-export function chancesFor(settings: GameSettings): number {
+export function chancesFor(settings: Pick<GameSettings, "level">): number {
   return SECOND_CHANCES[settings.level];
 }
 
@@ -42,7 +42,7 @@ export function botGate({
   settledAt,
   lastMoveClass,
 }: {
-  settings: GameSettings;
+  settings: Pick<GameSettings, "level">;
   used: number;
   movesCount: number;
   /** Nombre de coups au moment où le joueur a choisi « Continuer » (ou l'attente a expiré). */

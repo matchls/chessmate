@@ -17,7 +17,9 @@ export type GameStatus =
   | { kind: "playing"; turn: Color; check: boolean }
   | { kind: "checkmate"; winner: Color }
   | { kind: "draw"; reason: DrawReason }
-  | { kind: "resigned"; winner: Color };
+  | { kind: "resigned"; winner: Color }
+  /** Temps écoulé ; `winner` null : l'adversaire ne peut pas mater, la partie est nulle. */
+  | { kind: "timeout"; winner: Color | null };
 
 export type MoveResult =
   { ok: true; moves: MoveInput[]; san: string } | { ok: false };
@@ -70,18 +72,47 @@ export function isOwnPiece(game: Chess, square: Square): boolean {
 }
 
 /**
- * État de la partie. `resignedBy` : camp qui a abandonné (null : personne). Un mat ou une
- * nulle déjà sur l'échiquier l'emporte : on n'abandonne pas une partie déjà finie.
+ * État de la partie. `resignedBy` : camp qui a abandonné ; `flaggedBy` : camp tombé au temps
+ * (null : personne). Un mat ou une nulle déjà sur l'échiquier l'emporte : on n'abandonne pas,
+ * on ne perd pas au temps une partie déjà finie. Seul le camp au trait peut tomber au temps.
  */
 export function getStatus(
   game: Chess,
   resignedBy: Color | null = null,
+  flaggedBy: Color | null = null,
 ): GameStatus {
   const status = boardStatus(game);
-  if (resignedBy && status.kind === "playing") {
+  if (status.kind !== "playing") return status;
+  if (resignedBy) {
     return { kind: "resigned", winner: resignedBy === "w" ? "b" : "w" };
   }
+  if (flaggedBy && flaggedBy === game.turn()) {
+    const opponent: Color = flaggedBy === "w" ? "b" : "w";
+    return {
+      kind: "timeout",
+      winner: hasMatingMaterial(game, opponent) ? opponent : null,
+    };
+  }
   return status;
+}
+
+/**
+ * Vrai si `color` garde de quoi mater : un pion, une tour, une dame, ou au moins deux pièces
+ * mineures. Roi seul, ou roi + un seul fou ou cavalier : pas de mat possible, donc un temps
+ * écoulé de l'adversaire donne une partie nulle (règle simplifiée).
+ */
+export function hasMatingMaterial(game: Chess, color: Color): boolean {
+  let minors = 0;
+  for (const row of game.board()) {
+    for (const cell of row) {
+      if (!cell || cell.color !== color) continue;
+      if (cell.type === "p" || cell.type === "r" || cell.type === "q") {
+        return true;
+      }
+      if (cell.type === "b" || cell.type === "n") minors += 1;
+    }
+  }
+  return minors >= 2;
 }
 
 function boardStatus(game: Chess): GameStatus {
@@ -115,6 +146,10 @@ export function statusLabel(status: GameStatus): string {
       return DRAW_LABEL[status.reason];
     case "resigned":
       return `Les ${COLOR_LABEL[status.winner]} gagnent par abandon`;
+    case "timeout":
+      return status.winner
+        ? `Temps écoulé : les ${COLOR_LABEL[status.winner]} gagnent`
+        : "Temps écoulé, mais pas de mat possible : partie nulle";
     case "playing":
       return `${status.check ? "Échec ! " : ""}Aux ${COLOR_LABEL[status.turn]} de jouer`;
   }

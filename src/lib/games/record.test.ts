@@ -67,6 +67,62 @@ describe("fiche d'une partie terminée", () => {
     expect(game.eloAfter).toBeLessThan(600);
   });
 
+  it("temps écoulé du joueur : défaite au temps, cadence notée dans le PGN", () => {
+    const game = prepareGame(
+      input({
+        moves: [
+          { from: "e2", to: "e4" },
+          { from: "e7", to: "e5" },
+        ],
+        side: "white",
+        timeControl: "5+2",
+        timedOut: true,
+      }),
+      player,
+      now,
+    );
+    expect(game).toMatchObject({
+      outcome: "BLACK_WINS",
+      termination: "TIMEOUT",
+    });
+    expect(game.eloAfter).toBeLessThan(600);
+    expect(game.pgn).toContain('[TimeControl "300+2"]');
+    expect(game.pgn).toContain('[Termination "temps écoulé"]');
+  });
+
+  it("temps écoulé : le serveur déduit qui est tombé (le camp au trait)", () => {
+    const game = prepareGame(
+      input({
+        moves: [{ from: "e2", to: "e4" }],
+        side: "white",
+        timeControl: "10+5",
+        timedOut: true,
+      }),
+      player,
+      now,
+    );
+    // Les noirs (le bot) étaient au trait : le joueur gagne au temps.
+    expect(game).toMatchObject({
+      outcome: "WHITE_WINS",
+      termination: "TIMEOUT",
+    });
+  });
+
+  it("un mat sur l'échiquier l'emporte sur un temps écoulé annoncé", () => {
+    const game = prepareGame(
+      input({ timeControl: "5+2", timedOut: true }),
+      player,
+      now,
+    );
+    expect(game.termination).toBe("CHECKMATE");
+  });
+
+  it("partie sans pendule : PGN « TimeControl » à « - »", () => {
+    expect(prepareGame(input(), player, now).pgn).toContain(
+      '[TimeControl "-"]',
+    );
+  });
+
   it("partie avec aide : enregistrée, mais ne compte pas pour l'Elo", () => {
     const game = prepareGame(
       input({ assisted: true, secondChancesUsed: 2 }),
@@ -106,6 +162,34 @@ describe("fiche d'une partie terminée", () => {
     );
     expect(
       saveGameSchema.safeParse({ ...base, clientGameId: "123" }).success,
+    ).toBe(false);
+  });
+
+  it("le schéma refuse une cadence inconnue et un temps écoulé incohérent", () => {
+    const base = {
+      clientGameId: "6f0c1f9e-7a7b-4c6e-9d43-1f2a3b4c5d6e",
+      moves: FOOLS_MATE,
+      level: 800,
+      side: "black",
+      resigned: false,
+      assisted: false,
+      secondChancesUsed: 0,
+    };
+    expect(
+      saveGameSchema.safeParse({ ...base, timeControl: "1+0" }).success,
+    ).toBe(false);
+    // Sans pendule, pas de temps écoulé.
+    expect(saveGameSchema.safeParse({ ...base, timedOut: true }).success).toBe(
+      false,
+    );
+    // Abandon et temps écoulé ne vont pas ensemble.
+    expect(
+      saveGameSchema.safeParse({
+        ...base,
+        timeControl: "5+2",
+        timedOut: true,
+        resigned: true,
+      }).success,
     ).toBe(false);
   });
 });

@@ -80,5 +80,11 @@ describe("indicateur de trait", () => {
         playerColor: "w",
       }),
     ).toMatchObject({ tone: null, over: true });
+    expect(
+      turnIndicator({
+        status: { kind: "timeout", winner: null },
+        playerColor: "w",
+      }),
+    ).toMatchObject({ tone: null, over: true });
   });
 });

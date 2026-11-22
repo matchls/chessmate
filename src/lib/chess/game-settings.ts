@@ -1,4 +1,9 @@
 import { DEFAULT_BOT_LEVEL, type BotLevelId } from "@/lib/engine/levels";
+import {
+  DEFAULT_TIME_CONTROL,
+  getTimeControl,
+  type TimeControlId,
+} from "@/lib/chess/time-controls";
 
 /**
  * Réglages d'une partie contre le bot, choisis dans la fenêtre « Nouvelle partie » puis figés
@@ -12,17 +17,20 @@ export type SideChoice = Side | "random";
 export type SettingsChoice = {
   level: BotLevelId;
   side: SideChoice;
+  timeControl: TimeControlId;
 };
 
 /** Réglages définitifs d'une partie. */
 export type GameSettings = {
   level: BotLevelId;
   side: Side;
+  timeControl: TimeControlId;
 };
 
 export const DEFAULT_CHOICE: SettingsChoice = {
   level: DEFAULT_BOT_LEVEL,
   side: "white",
+  timeControl: DEFAULT_TIME_CONTROL,
 };
 
 /** Transforme un choix en réglages définitifs ; « au hasard » est tiré ici, une fois. */
@@ -36,11 +44,18 @@ export function resolveSettings(
         ? "white"
         : "black"
       : choice.side;
-  return { level: choice.level, side };
+  return { level: choice.level, side, timeControl: choice.timeControl };
 }
 
-/** Résumé affiché pendant la partie, par exemple « Bot 1000 · tu joues les blancs ». */
+/**
+ * Résumé affiché pendant la partie, par exemple « Bot 1000 · tu joues les blancs », suivi de la
+ * cadence pour une partie chronométrée (« · 5+2 »).
+ */
 export function settingsSummary(settings: GameSettings): string {
   const side = settings.side === "white" ? "les blancs" : "les noirs";
-  return `Bot ${settings.level} · tu joues ${side}`;
+  const timed =
+    settings.timeControl === DEFAULT_TIME_CONTROL
+      ? ""
+      : ` · ${getTimeControl(settings.timeControl).label}`;
+  return `Bot ${settings.level} · tu joues ${side}${timed}`;
 }

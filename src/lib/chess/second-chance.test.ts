@@ -8,7 +8,11 @@ import {
   withoutLastMove,
 } from "./second-chance";
 
-const BOT_1000: GameSettings = { level: 1000, side: "white" };
+const BOT_1000: GameSettings = {
+  level: 1000,
+  side: "white",
+  timeControl: "none",
+};
 
 describe("seconde chance", () => {
   it("nombre de chances selon le niveau", () => {
