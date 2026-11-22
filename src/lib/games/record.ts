@@ -8,6 +8,7 @@ import {
 import { eloAfterGame } from "@/lib/elo";
 import { BOT_LEVELS, type BotLevelId } from "@/lib/engine/levels";
 import { isSquare } from "@/lib/coach/schema";
+import { pgnTimeControl, TIME_CONTROL_IDS } from "@/lib/chess/time-controls";
 import type {
   GameOutcome,
   GameTermination,
@@ -23,30 +24,40 @@ import type {
 const squareSchema = z.string().refine(isSquare, "Case invalide");
 const LEVEL_IDS = BOT_LEVELS.map((level) => level.id);
 
-export const saveGameSchema = z.object({
-  /** Identifiant tiré au lancement de la partie : empêche un double enregistrement. */
-  clientGameId: z.uuid(),
-  moves: z
-    .array(
-      z.object({
-        from: squareSchema,
-        to: squareSchema,
-        promotion: z.enum(["q", "r", "b", "n"]).optional(),
-      }),
-    )
-    .min(1)
-    .max(600),
-  level: z
-    .number()
-    .refine(
-      (value) => LEVEL_IDS.includes(value as BotLevelId),
-      "Niveau inconnu",
-    ),
-  side: z.enum(["white", "black"]),
-  resigned: z.boolean(),
-  assisted: z.boolean(),
-  secondChancesUsed: z.number().int().min(0).max(10),
-});
+export const saveGameSchema = z
+  .object({
+    /** Identifiant tiré au lancement de la partie : empêche un double enregistrement. */
+    clientGameId: z.uuid(),
+    moves: z
+      .array(
+        z.object({
+          from: squareSchema,
+          to: squareSchema,
+          promotion: z.enum(["q", "r", "b", "n"]).optional(),
+        }),
+      )
+      .min(1)
+      .max(600),
+    level: z
+      .number()
+      .refine(
+        (value) => LEVEL_IDS.includes(value as BotLevelId),
+        "Niveau inconnu",
+      ),
+    side: z.enum(["white", "black"]),
+    resigned: z.boolean(),
+    assisted: z.boolean(),
+    secondChancesUsed: z.number().int().min(0).max(10),
+    timeControl: z.enum(TIME_CONTROL_IDS).default("none"),
+    /** Le camp au trait est tombé au temps (le serveur en déduit lequel). */
+    timedOut: z.boolean().default(false),
+  })
+  .refine((input) => !(input.timedOut && input.timeControl === "none"), {
+    message: "Temps écoulé impossible sans pendule",
+  })
+  .refine((input) => !(input.timedOut && input.resigned), {
+    message: "Abandon et temps écoulé à la fois",
+  });
 
 export type SaveGameInput = z.infer<typeof saveGameSchema>;
 
@@ -99,21 +110,28 @@ export function prepareGame(
   }
 
   const playerColor: Color = input.side === "white" ? "w" : "b";
-  const status = getStatus(game, input.resigned ? playerColor : null);
+  // Temps écoulé : c'est forcément le camp au trait qui est tombé (sa pendule tournait).
+  const status = getStatus(
+    game,
+    input.resigned ? playerColor : null,
+    input.timedOut ? game.turn() : null,
+  );
   if (status.kind === "playing") {
     throw new InvalidGameError("La partie n'est pas terminée");
   }
 
-  const outcome: GameOutcome =
-    status.kind === "draw" ? "DRAW" : OUTCOME_OF[status.winner];
+  const winner = status.kind === "draw" ? null : status.winner;
+  const outcome: GameOutcome = winner === null ? "DRAW" : OUTCOME_OF[winner];
   const termination: GameTermination =
     status.kind === "draw"
       ? DRAW_TERMINATION[status.reason]
       : status.kind === "checkmate"
         ? "CHECKMATE"
-        : "RESIGNATION";
+        : status.kind === "timeout"
+          ? "TIMEOUT"
+          : "RESIGNATION";
   const score: 0 | 0.5 | 1 =
-    status.kind === "draw" ? 0.5 : status.winner === playerColor ? 1 : 0;
+    winner === null ? 0.5 : winner === playerColor ? 1 : 0;
 
   const result =
     outcome === "DRAW" ? "1/2-1/2" : outcome === "WHITE_WINS" ? "1-0" : "0-1";
@@ -124,7 +142,9 @@ export function prepareGame(
   game.setHeader("White", input.side === "white" ? "Joueur" : bot);
   game.setHeader("Black", input.side === "black" ? "Joueur" : bot);
   game.setHeader("Result", result);
+  game.setHeader("TimeControl", pgnTimeControl(input.timeControl));
   if (status.kind === "resigned") game.setHeader("Termination", "abandon");
+  if (status.kind === "timeout") game.setHeader("Termination", "temps écoulé");
 
   const elo = input.assisted
     ? null

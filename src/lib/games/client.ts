@@ -10,6 +10,7 @@ export function buildSaveRequest({
   moves,
   settings,
   resigned,
+  timedOut = false,
   assisted,
   secondChancesUsed,
 }: {
@@ -17,6 +18,7 @@ export function buildSaveRequest({
   moves: readonly MoveInput[];
   settings: GameSettings;
   resigned: boolean;
+  timedOut?: boolean;
   assisted: boolean;
   secondChancesUsed: number;
 }): SaveGameInput {
@@ -32,6 +34,8 @@ export function buildSaveRequest({
     resigned,
     assisted,
     secondChancesUsed,
+    timeControl: settings.timeControl,
+    timedOut,
   };
 }
 

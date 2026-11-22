@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import type { SettingsChoice, SideChoice } from "@/lib/chess/game-settings";
 import { BOT_LEVELS } from "@/lib/engine/levels";
+import { TIME_CONTROLS } from "@/lib/chess/time-controls";
 
 type NewGameDialogProps = {
   open: boolean;
@@ -28,7 +29,7 @@ const SIDES: { value: SideChoice; label: string }[] = [
 ];
 
 /**
- * Fenêtre « Nouvelle partie » : niveau du bot et couleur se choisissent ici, avant de
+ * Fenêtre « Nouvelle partie » : niveau du bot, couleur et cadence se choisissent ici, avant de
  * commencer. « Annuler » ferme la fenêtre et garde la partie en cours intacte.
  */
 export function NewGameDialog({
@@ -91,6 +92,17 @@ function NewGameForm({
               onClick={() => update({ side: side.value })}
             >
               {side.label}
+            </ChoiceButton>
+          ))}
+        </ChoiceRow>
+        <ChoiceRow label="Cadence">
+          {TIME_CONTROLS.map((control) => (
+            <ChoiceButton
+              key={control.id}
+              pressed={choice.timeControl === control.id}
+              onClick={() => update({ timeControl: control.id })}
+            >
+              {control.label}
             </ChoiceButton>
           ))}
         </ChoiceRow>

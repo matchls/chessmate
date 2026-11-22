@@ -9,7 +9,7 @@ describe("enregistrement côté navigateur", () => {
       { from: "e2", to: "e4" },
       { from: "e7", to: "e8", promotion: "q" },
     ],
-    settings: { level: 1000, side: "white" },
+    settings: { level: 1000, side: "white", timeControl: "none" },
     resigned: true,
     assisted: false,
     secondChancesUsed: 0,

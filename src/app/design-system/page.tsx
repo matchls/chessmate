@@ -15,6 +15,7 @@ import { ResignDemo } from "./resign-demo";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GameSaveNotice } from "@/components/chess/game-save-notice";
+import { ChessClock } from "@/components/chess/chess-clock";
 import { ReviewDemo } from "./review-demo";
 import { SecondChanceDemo } from "./second-chance-demo";
 import { TurnDemo } from "./turn-demo";
@@ -321,7 +322,7 @@ export default function DesignSystemPage() {
 
       <Section
         title="Nouvelle partie"
-        description="Fenêtre de réglages (niveau du bot, couleur) ouverte avant chaque partie ; pendant la partie, un résumé en lecture seule."
+        description="Fenêtre de réglages (niveau du bot, couleur, cadence) ouverte avant chaque partie ; pendant la partie, un résumé en lecture seule."
       >
         <NewGameDemo />
       </Section>
@@ -331,6 +332,18 @@ export default function DesignSystemPage() {
         description="Pastille aux couleurs du camp au trait (ou du gagnant), toujours accompagnée du texte : l'information ne repose pas sur la seule couleur. Elle pulse pendant que le bot réfléchit."
       >
         <TurnDemo />
+      </Section>
+
+      <Section
+        title="Pendule"
+        description="Une pendule au-dessus et une sous l'échiquier, en partie chronométrée. La pendule en marche est sur fond parchemin ; sous 10 secondes, elle passe en bordeaux avec les dixièmes."
+      >
+        <div className="flex max-w-sm flex-col gap-2">
+          <ChessClock label="Bot 1000" remainingMs={252_000} active={false} />
+          <ChessClock label="Toi" remainingMs={187_000} active />
+          <ChessClock label="Toi" remainingMs={7_400} active />
+          <ChessClock label="Bot 1000" remainingMs={8_100} active={false} />
+        </div>
       </Section>
 
       <Section

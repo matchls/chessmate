@@ -1,7 +1,9 @@
+import { Chess } from "chess.js";
 import { describe, expect, it } from "vitest";
 import {
   checkedKingSquare,
   getStatus,
+  hasMatingMaterial,
   isOwnPiece,
   legalTargets,
   needsPromotion,
@@ -219,5 +221,68 @@ describe("abandon", () => {
       kind: "checkmate",
       winner: "b",
     });
+  });
+});
+
+describe("temps écoulé", () => {
+  it("le camp au trait qui tombe au temps perd", () => {
+    const game = replay([{ from: "e2", to: "e4" }]);
+    expect(getStatus(game, null, "b")).toEqual({
+      kind: "timeout",
+      winner: "w",
+    });
+    expect(statusLabel(getStatus(game, null, "b"))).toBe(
+      "Temps écoulé : les blancs gagnent",
+    );
+  });
+
+  it("seul le camp au trait peut tomber au temps", () => {
+    const game = replay([{ from: "e2", to: "e4" }]);
+    expect(getStatus(game, null, "w").kind).toBe("playing");
+  });
+
+  it("nulle si l'adversaire n'a plus de quoi mater (roi + un fou)", () => {
+    // Blancs au trait, à court de temps ; les noirs n'ont qu'un roi et un fou.
+    const game = new Chess("4k3/8/8/8/8/2b5/8/R3K3 w - - 0 1");
+    expect(getStatus(game, null, "w")).toEqual({
+      kind: "timeout",
+      winner: null,
+    });
+    expect(statusLabel(getStatus(game, null, "w"))).toBe(
+      "Temps écoulé, mais pas de mat possible : partie nulle",
+    );
+  });
+
+  it("un mat déjà sur l'échiquier l'emporte sur le temps", () => {
+    const foolsMate = replay([
+      { from: "f2", to: "f3" },
+      { from: "e7", to: "e5" },
+      { from: "g2", to: "g4" },
+      { from: "d8", to: "h4" },
+    ]);
+    expect(getStatus(foolsMate, null, "w").kind).toBe("checkmate");
+  });
+});
+
+describe("hasMatingMaterial", () => {
+  it("pion, tour, dame ou deux pièces mineures : mat possible", () => {
+    expect(
+      hasMatingMaterial(new Chess("4k3/4p3/8/8/8/8/8/4K3 w - - 0 1"), "b"),
+    ).toBe(true);
+    expect(
+      hasMatingMaterial(new Chess("4k3/8/8/8/8/8/8/R3K3 w - - 0 1"), "w"),
+    ).toBe(true);
+    expect(
+      hasMatingMaterial(new Chess("4k3/8/8/8/8/8/8/1NN1K3 w - - 0 1"), "w"),
+    ).toBe(true);
+  });
+
+  it("roi seul, ou roi + un fou ou un cavalier : pas de mat possible", () => {
+    expect(
+      hasMatingMaterial(new Chess("4k3/8/8/8/8/8/8/R3K3 w - - 0 1"), "b"),
+    ).toBe(false);
+    expect(
+      hasMatingMaterial(new Chess("4k3/8/8/8/8/8/8/1N2K3 w - - 0 1"), "w"),
+    ).toBe(false);
   });
 });

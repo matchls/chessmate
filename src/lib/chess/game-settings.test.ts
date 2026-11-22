@@ -6,10 +6,11 @@ import {
 } from "./game-settings";
 
 describe("réglages de partie", () => {
-  it("par défaut : bot 1000, blancs", () => {
+  it("par défaut : bot 1000, blancs, sans limite de temps", () => {
     expect(resolveSettings(DEFAULT_CHOICE)).toEqual({
       level: 1000,
       side: "white",
+      timeControl: "none",
     });
   });
 
@@ -20,8 +21,19 @@ describe("réglages de partie", () => {
   });
 
   it("résumé affiché pendant la partie", () => {
-    expect(settingsSummary({ level: 1200, side: "black" })).toBe(
-      "Bot 1200 · tu joues les noirs",
-    );
+    expect(
+      settingsSummary({ level: 1200, side: "black", timeControl: "none" }),
+    ).toBe("Bot 1200 · tu joues les noirs");
+  });
+
+  it("le résumé indique la cadence d'une partie chronométrée", () => {
+    expect(
+      settingsSummary({ level: 1000, side: "white", timeControl: "5+2" }),
+    ).toBe("Bot 1000 · tu joues les blancs · 5+2");
+  });
+
+  it("la cadence choisie est gardée telle quelle", () => {
+    const choice = { ...DEFAULT_CHOICE, timeControl: "10+5" as const };
+    expect(resolveSettings(choice).timeControl).toBe("10+5");
   });
 });

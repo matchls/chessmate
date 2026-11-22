@@ -22,10 +22,14 @@ import { ResignDialog } from "@/components/chess/resign-dialog";
 import { TurnIndicator } from "@/components/chess/turn-indicator";
 import { SecondChanceOffer } from "@/components/chess/second-chance-offer";
 import { ReviewControls } from "@/components/chess/review-controls";
+import { ChessClock } from "@/components/chess/chess-clock";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCoach } from "@/hooks/use-coach";
 import { useGameSave } from "@/hooks/use-game-save";
+import { useChessClock, useClockTicker } from "@/hooks/use-chess-clock";
+import { flagged, remainingMs } from "@/lib/chess/clock";
+import { botThinkMs } from "@/lib/chess/time-controls";
 import { buildSaveRequest } from "@/lib/games/client";
 import { useExplain } from "@/hooks/use-explain";
 import { usePositionAnalysis } from "@/hooks/use-position-analysis";
@@ -139,10 +143,13 @@ export function GameBoard() {
   /** Camp qui a abandonné (gardé avec la partie pour l'historique, #12). */
   const [resignedBy, setResignedBy] = useState<Color | null>(null);
   const [resignOpen, setResignOpen] = useState(false);
+  /** Pendule (null : partie sans limite de temps). */
+  const chessClock = useChessClock();
+  const clock = chessClock.clock;
 
   const game = useMemo(() => replay(moves), [moves]);
   const fen = game.fen();
-  const status = getStatus(game, resignedBy);
+  const status = getStatus(game, resignedBy, flagged(clock));
   const isOver = status.kind !== "playing";
   const turn: Color = game.turn();
   const isBotTurn = !isOver && turn !== sideToColor(playerSide);
@@ -192,7 +199,15 @@ export function GameBoard() {
       ? lastMoveClass
       : null;
 
+  // La pendule tourne pendant la partie, revue et coach compris ; elle s'arrête pendant
+  // qu'une seconde chance est proposée (ou que le bot attend l'analyse pour la proposer).
+  useClockTicker(chessClock.tickNow, {
+    ticking: !isOver && clock !== null,
+    running: gate === "play",
+  });
+
   function retryMove() {
+    chessClock.undo();
     setMoves((current) => withoutLastMove(current));
     setChancesUsed((used) => used + 1);
     setAssisted(true);
@@ -220,6 +235,7 @@ export function GameBoard() {
             moves,
             settings,
             resigned: resignedBy !== null,
+            timedOut: status.kind === "timeout",
             assisted,
             secondChancesUsed: chancesUsed,
           }),
@@ -292,6 +308,8 @@ export function GameBoard() {
     });
   }
 
+  const { latest: clockLatest, press: pressClock } = chessClock;
+
   // Quand c'est au bot de jouer : on demande un coup à Stockfish après un court délai.
   useEffect(() => {
     if (!isBotTurn || reviewing || gate !== "play") return;
@@ -299,22 +317,39 @@ export function GameBoard() {
     if (settings.level === null) return;
     const { options, limits } = getBotLevel(settings.level);
 
+    // En partie chronométrée, le bot prend un temps de réflexion réaliste, décompté sur sa pendule.
+    const clockNow = clockLatest();
+    const delay = clockNow
+      ? botThinkMs(remainingMs(clockNow, clockNow.turn), clockNow.incrementMs)
+      : BOT_MOVE_DELAY_MS;
+
     const timer = setTimeout(async () => {
       const engine = engineRef.current;
       if (!engine) return;
       const move = await engine.bestMove(fen, options, limits);
       if (cancelled || !move) return;
+      // Temps écoulé pendant la réflexion : le coup arrive trop tard.
+      if (!pressClock()) return;
       setMoves((current) => {
         const result = tryMove(current, move);
         return result.ok ? result.moves : current;
       });
-    }, BOT_MOVE_DELAY_MS);
+    }, delay);
 
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [isBotTurn, reviewing, gate, fen, settings.level, engineRef]);
+  }, [
+    isBotTurn,
+    reviewing,
+    gate,
+    fen,
+    settings.level,
+    engineRef,
+    clockLatest,
+    pressClock,
+  ]);
 
   function review(action: ReviewAction) {
     setSelected(null);
@@ -354,6 +389,11 @@ export function GameBoard() {
   function play(move: MoveInput): boolean {
     const result = tryMove(moves, move);
     if (!result.ok) return false;
+    // Temps écoulé avant le coup : il n'est pas joué, la partie est perdue au temps.
+    if (!chessClock.press()) {
+      setSelected(null);
+      return false;
+    }
     setMoves(result.moves);
     setSelected(null);
     return true;
@@ -400,9 +440,12 @@ export function GameBoard() {
 
   function startGame(choice: SettingsChoice) {
     setLastChoice(choice);
-    setSettings(resolveSettings(choice));
+    const next = resolveSettings(choice);
+    setSettings(next);
     setSettingsOpen(false);
     resetBoard();
+    // La pendule démarre au clic sur « Commencer » : les blancs ont la main.
+    chessClock.start(next.timeControl);
   }
 
   function resetBoard() {
@@ -445,9 +488,24 @@ export function GameBoard() {
   const coachHighlights = coachSquareStyles(coachReply?.highlights ?? []);
   const coachBoardArrows = coachArrows(coachReply?.arrows ?? []);
 
+  // Pendules : celle du camp du haut au-dessus de l'échiquier, l'autre en dessous.
+  const bottomColor: Color = sideToColor(orientation);
+  const topColor: Color = bottomColor === "w" ? "b" : "w";
+  const clockLabel = (color: Color) =>
+    color === sideToColor(playerSide) ? "Toi" : `Bot ${settings.level}`;
+  const clockActive = (color: Color) =>
+    !isOver && gate === "play" && clock?.turn === color;
+
   return (
     <div className="flex w-full flex-col gap-6 lg:flex-row lg:items-start">
       <div className="mx-auto flex w-full max-w-[min(100%,600px)] flex-1 flex-col gap-3">
+        {clock && (
+          <ChessClock
+            label={clockLabel(topColor)}
+            remainingMs={remainingMs(clock, topColor)}
+            active={clockActive(topColor)}
+          />
+        )}
         <Chessboard
           options={{
             id: "chessmate-board",
@@ -463,6 +521,13 @@ export function GameBoard() {
             onSquareClick: handleSquareClick,
           }}
         />
+        {clock && (
+          <ChessClock
+            label={clockLabel(bottomColor)}
+            remainingMs={remainingMs(clock, bottomColor)}
+            active={clockActive(bottomColor)}
+          />
+        )}
 
         {reviewing && (
           <div
