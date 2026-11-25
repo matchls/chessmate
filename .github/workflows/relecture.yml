@@ -3,9 +3,15 @@
 # code s'écrire. Il ne valide ni ne bloque la PR : la décision de fusion suit docs/workflow.md.
 name: Relecture automatique
 
+# Une seule relecture par PR (à l'ouverture, ou quand elle sort du brouillon), pour économiser
+# l'abonnement Claude. Les corrections suivantes sont contre-vérifiées avec un commentaire
+# « @claude vérifie… » (voir docs/workflow.md). Une PR qui ne touche que des fichiers Markdown
+# n'est pas relue.
 on:
   pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
+    types: [opened, ready_for_review, reopened]
+    paths-ignore:
+      - "**/*.md"
 
 # Si on pousse deux fois de suite sur la même PR, on annule la relecture précédente.
 concurrency:

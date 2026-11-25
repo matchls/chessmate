@@ -104,9 +104,10 @@ requêtes et donc la facture.
 
 ## Les outils de la boucle
 
-- **Relecteur** (`.github/workflows/relecture.yml`) : se lance à chaque PR ouverte ou mise à
-  jour, en parallèle de la CI. Il ne relit pas les PR en brouillon ni celles qu'il juge
-  triviales. Il ne valide ni ne bloque : c'est un avis, la règle de fusion reste le tableau.
+- **Relecteur** (`.github/workflows/relecture.yml`) : se lance **une seule fois par PR**, à
+  l'ouverture (ou quand elle sort du brouillon), en parallèle de la CI. Il ne se relance pas
+  quand on pousse des corrections : la contre-vérification passe par `@claude`. Il ne relit
+  pas les PR qui ne touchent que des fichiers Markdown, ni celles qu'il juge triviales. Il ne valide ni ne bloque : c'est un avis, la règle de fusion reste le tableau.
 - **`@claude`** (`.github/workflows/claude.yml`) : écrire un commentaire contenant `@claude`
   dans une PR ou une issue, par exemple « @claude explique-moi ce fichier ». Pratique depuis le
   téléphone.
